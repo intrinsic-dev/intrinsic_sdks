@@ -1,7 +1,7 @@
 // Copyright 2023 Intrinsic Innovation LLC
 
-#ifndef INTRINSIC_SKILLS_CC_EXECUTE_REQUEST_H_
-#define INTRINSIC_SKILLS_CC_EXECUTE_REQUEST_H_
+#ifndef INTRINSIC_SKILLS_CC_PREVIEW_REQUEST_H_
+#define INTRINSIC_SKILLS_CC_PREVIEW_REQUEST_H_
 
 #include <optional>
 #include <string>
@@ -18,12 +18,12 @@
 namespace intrinsic {
 namespace skills {
 
-// A request for a call to SkillInterface::Execute.
-class ExecuteRequest {
+// A request for a call to SkillInterface::Preview.
+class PreviewRequest {
  public:
   // `param_defaults` can specify default parameter values to merge into any
   // unset fields of `params`.
-  explicit ExecuteRequest(
+  explicit PreviewRequest(
       const ::google::protobuf::Message& params,
       ::google::protobuf::Message* param_defaults = nullptr) {
     params_any_.PackFrom(params);
@@ -39,7 +39,7 @@ class ExecuteRequest {
   // This constructor enables conversion from Any to the target type without
   // needing a message pool/factory up front, since params() is templated on the
   // target type.
-  explicit ExecuteRequest(google::protobuf::Any params,
+  explicit PreviewRequest(google::protobuf::Any params,
                           std::optional<::google::protobuf::Any> param_defaults)
       : params_any_(std::move(params)),
         param_defaults_any_(std::move(param_defaults)) {}
@@ -61,4 +61,4 @@ class ExecuteRequest {
 }  // namespace skills
 }  // namespace intrinsic
 
-#endif  // INTRINSIC_SKILLS_CC_EXECUTE_REQUEST_H_
+#endif  // INTRINSIC_SKILLS_CC_PREVIEW_REQUEST_H_
