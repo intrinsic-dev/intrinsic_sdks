@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -20,6 +18,8 @@ service SimulationService {
   // Reset the current simulation to its initial state and make sure that all
   // affected components such as ICON are in a working state.
   rpc ResetSimulation(ResetSimulationRequest) returns (google.protobuf.Empty) {
+    // Auth annotations for consumption by the following helm_chart:
+    //   cs/symbol://intrinsic/kubernetes/api_relay/cloud:api-relay
     
   }
 

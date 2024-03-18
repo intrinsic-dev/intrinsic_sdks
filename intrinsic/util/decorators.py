@@ -1,9 +1,6 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Helper decorators for Python files."""
-
 
 def overrides(interface):
   """Overrides decorator to annotate method overrides parent's."""

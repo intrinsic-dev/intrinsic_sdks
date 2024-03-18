@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -15,6 +13,7 @@ import "intrinsic/icon/proto/part_status.proto";
 import "intrinsic/logging/errors/proto/error_report.proto";
 import "intrinsic/logging/proto/blob.proto";
 import "intrinsic/logging/proto/context.proto";
+import "intrinsic/logging/proto/flowstate_event.proto";
 import "intrinsic/perception/proto/frame.proto";
 import "intrinsic/perception/proto/hand_eye_calibration.proto";
 import "intrinsic/perception/proto/pose_estimation_result.proto";
@@ -78,6 +77,8 @@ message LogItem {
       intrinsic_proto.error.ErrorReport error_report = 23;
 
       // ===== Skills =====
+      intrinsic_proto.skills.PreviewRequest skills_preview_request = 48;
+      intrinsic_proto.skills.PreviewSummary skills_preview_summary = 49;
       intrinsic_proto.skills.PredictRequest skills_predict_request = 36;
       intrinsic_proto.skills.PredictionSummary skills_prediction_summary = 37;
       intrinsic_proto.skills.GetFootprintRequest skills_get_footprint_request =

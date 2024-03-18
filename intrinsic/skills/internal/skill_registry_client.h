@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_SKILLS_INTERNAL_SKILL_REGISTRY_CLIENT_H_
 #define INTRINSIC_SKILLS_INTERNAL_SKILL_REGISTRY_CLIENT_H_
@@ -72,9 +70,6 @@ class SkillRegistryClient : public SkillRegistryClientInterface {
 
   absl::StatusOr<intrinsic_proto::skills::Skill> GetSkillById(
       absl::string_view skill_id) const final;
-
-  absl::StatusOr<intrinsic_proto::skills::SkillInstance> GetInstanceByName(
-      absl::string_view skill_name, const EquipmentPack& equipment) const final;
 
   absl::StatusOr<intrinsic_proto::skills::SkillInstance> GetInstance(
       absl::string_view id, const EquipmentPack& equipment) const final;

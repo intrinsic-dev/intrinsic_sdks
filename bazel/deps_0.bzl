@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Workspace dependencies needed for the Intrinsic SDKs as a 3rd-party consumer (part 0)."""
 
@@ -16,13 +14,13 @@ def intrinsic_sdks_deps_0():
     following in your WORKSPACE:
 
     git_repository(name = "com_googlesource_intrinsic_intrinsic_sdks", remote = "...", ...)
-    load("@com_googlesource_intrinsic_intrinsic_sdks//:intrinsic_sdks_deps_0.bzl", "intrinsic_sdks_deps_0")
+    load("@com_googlesource_intrinsic_intrinsic_sdks//bazel:deps_0.bzl", "intrinsic_sdks_deps_0")
     intrinsic_sdks_deps_0()
-    load("@com_googlesource_intrinsic_intrinsic_sdks//:intrinsic_sdks_deps_1.bzl", "intrinsic_sdks_deps_1")
+    load("@com_googlesource_intrinsic_intrinsic_sdks//bazel:deps_1.bzl", "intrinsic_sdks_deps_1")
     intrinsic_sdks_deps_1()
-    load("@com_googlesource_intrinsic_intrinsic_sdks//:intrinsic_sdks_deps_2.bzl", "intrinsic_sdks_deps_2")
+    load("@com_googlesource_intrinsic_intrinsic_sdks//bazel:deps_2.bzl", "intrinsic_sdks_deps_2")
     intrinsic_sdks_deps_2()
-    load("@com_googlesource_intrinsic_intrinsic_sdks//:intrinsic_sdks_deps_3.bzl", "intrinsic_sdks_deps_3")
+    load("@com_googlesource_intrinsic_intrinsic_sdks//bazel:deps_3.bzl", "intrinsic_sdks_deps_3")
     intrinsic_sdks_deps_3()
 
     The reason why this is split into multiple files and macros is that .bzl-files can only contain
@@ -34,20 +32,20 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "io_bazel_rules_go",
-        sha256 = "56d8c5a5c91e1af73eca71a6fab2ced959b67c86d12ba37feedb0a2dfea441a6",
+        sha256 = "91585017debb61982f7054c9688857a2ad1fd823fc3f9cb05048b0025c47d023",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.37.0/rules_go-v0.37.0.zip",
-            "https://github.com/bazelbuild/rules_go/releases/download/v0.37.0/rules_go-v0.37.0.zip",
+            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
+            "https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
         ],
     )
 
     maybe(
         http_archive,
         name = "bazel_gazelle",
-        sha256 = "29d5dafc2a5582995488c6735115d1d366fcd6a0fc2e2a153f02988706349825",
+        sha256 = "d3fa66a39028e97d76f9e2db8f1b0c11c099e8e01bf363a923074784e451f809",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.31.0/bazel-gazelle-v0.31.0.tar.gz",
-            "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.31.0/bazel-gazelle-v0.31.0.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.33.0/bazel-gazelle-v0.33.0.tar.gz",
+            "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.33.0/bazel-gazelle-v0.33.0.tar.gz",
         ],
     )
 

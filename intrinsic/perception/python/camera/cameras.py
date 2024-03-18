@@ -1,8 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Convenience class for Camera use within skills."""
+
 from __future__ import annotations
 
 import datetime
@@ -29,11 +28,11 @@ _CONFIG_EQUIPMENT_IDENTIFIER = "CameraConfig"
 
 
 def _unpack_camera_config(
-    camera_equipment: equipment_pb2.EquipmentHandle,
+    camera_equipment: equipment_pb2.ResourceHandle,
 ) -> Optional[camera_config_pb2.CameraConfig]:
-  """Returns the camera config from a camera equipment handle or None if equipment is not a camera."""
-  data: Mapping[str, equipment_pb2.EquipmentHandle.EquipmentData] = (
-      camera_equipment.equipment_data
+  """Returns the camera config from a camera resource handle or None if equipment is not a camera."""
+  data: Mapping[str, equipment_pb2.ResourceHandle.ResourceData] = (
+      camera_equipment.resource_data
   )
   config = None
   if _CONFIG_EQUIPMENT_IDENTIFIER in data:
@@ -51,16 +50,16 @@ def _unpack_camera_config(
   return camera_config
 
 
-def make_camera_equipment_selector() -> equipment_pb2.EquipmentSelector:
-  """Creates the default equipment selector for a camera equipment slot.
+def make_camera_resource_selector() -> equipment_pb2.ResourceSelector:
+  """Creates the default resource selector for a camera equipment slot.
 
   Used in a skill's `required_equipment` implementation.
 
   Returns:
-    An equipment selector that is valid for cameras.
+    A resource selector that is valid for cameras.
   """
-  return equipment_pb2.EquipmentSelector(
-      equipment_type_names=[
+  return equipment_pb2.ResourceSelector(
+      capability_names=[
           _CONFIG_EQUIPMENT_IDENTIFIER,
       ]
   )
@@ -79,17 +78,17 @@ class Camera:
     @classmethod
     @overrides(skl.Skill)
     def required_equipment(cls) -> Mapping[str,
-    equipment_pb2.EquipmentSelector]:
+    equipment_pb2.ResourceSelector]:
       # create a camera equipment slot for the skill
       return {
-          camera_slot: cameras.make_camera_equipment_selector()
+          camera_slot: cameras.make_camera_resource_selector()
       }
     ```
   - Create and use a camera in the skill:
     ```
     def execute(
         self, request: skl.ExecuteRequest, context: skl.ExecuteContext
-    ) -> skill_service_pb2.ExecuteResult:
+    ) -> ...:
     ...
 
     # access the camera equipment slot added in `required_equipment`
@@ -111,7 +110,7 @@ class Camera:
     ...
   """
 
-  _camera_equipment: equipment_pb2.EquipmentHandle
+  _camera_equipment: equipment_pb2.ResourceHandle
   _world_client: Optional[object_world_client.ObjectWorldClient]
   _world_object: Optional[object_world_resources.WorldObject]
   _client: camera_client.CameraClient
@@ -137,7 +136,7 @@ class Camera:
     Returns:
       A connected Camera object with sensor information cached.
     """
-    camera_equipment = context.equipment_handles[slot]
+    camera_equipment = context.resource_handles[slot]
     world_client = context.object_world
 
     return cls(
@@ -146,21 +145,20 @@ class Camera:
     )
 
   @classmethod
-  def create_from_equipment_handle(
-      cls, equipment_handle: equipment_pb2.EquipmentHandle
+  def create_from_resource_handle(
+      cls, resource_handle: equipment_pb2.ResourceHandle
   ) -> Camera:
-    """Creates a Camera object from the given equipment handle.
+    """Creates a Camera object from the given resource handle.
 
     Args:
-      equipment_handle: The equipment handle with which to connect to the
-        camera.
+      resource_handle: The resource handle with which to connect to the camera.
 
     Returns:
       A connected Camera object with sensor information cached. No object or
       world information is available, so an identity pose will be used for
       world_t_camera and all the world update methods will be a no-op.
     """
-    camera_equipment = equipment_handle
+    camera_equipment = resource_handle
 
     return cls(
         camera_equipment=camera_equipment,
@@ -168,19 +166,18 @@ class Camera:
 
   def __init__(
       self,
-      camera_equipment: equipment_pb2.EquipmentHandle,
+      camera_equipment: equipment_pb2.ResourceHandle,
       world_client: Optional[object_world_client.ObjectWorldClient] = None,
   ):
     """Creates a Camera object from the given camera equipment and world.
 
     Args:
-      camera_equipment: The equipment handle with which to connect to the
-        camera.
+      camera_equipment: The resource handle with which to connect to the camera.
       world_client: The current world client, for camera pose information.
 
     Raises:
       RuntimeError: The camera's config could not be parsed from the
-        equipment handle.
+        resource handle.
     """
     self._camera_equipment = camera_equipment
     self._world_client = world_client
@@ -202,7 +199,7 @@ class Camera:
     # parse config
     camera_config = _unpack_camera_config(self._camera_equipment)
     if not camera_config:
-      raise RuntimeError("Could not parse camera config from equipment handle.")
+      raise RuntimeError("Could not parse camera config from resource handle.")
 
     self._client = camera_client.CameraClient(
         camera_channel, connection_params, camera_config

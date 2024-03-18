@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/kinematics/types/cartesian_limits.h"
 
@@ -8,6 +6,8 @@
 #include <limits>
 
 namespace intrinsic {
+
+CartesianLimits::CartesianLimits() { SetUnlimited(); }
 
 const CartesianLimits& CartesianLimits::Unlimited() {
   static const CartesianLimits* limits = []() {

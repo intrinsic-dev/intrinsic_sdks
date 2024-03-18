@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package auth manages API keys in a local config files.
 package auth
@@ -22,8 +20,11 @@ const (
 	AliasDefaultToken = "default"
 
 	storeDirectory      = "intrinsic/projects"
+	orgStoreDirectory   = "intrinsic/organizations"
 	authConfigExtension = ".user-token"
-	orgStoreDirectory = "intrinsic/organizations"
+
+	// OrgIDHeader is the header name for providing the org in requests to our services.
+	OrgIDHeader = "org-id"
 
 	directoryMode  os.FileMode = 0700
 	fileMode       os.FileMode = 0600

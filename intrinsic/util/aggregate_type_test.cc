@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/util/aggregate_type.h"
 
@@ -135,11 +133,11 @@ TEST(AggregateTypesTest, ReferenceCastingConstructors) {
 TEST(AggregateTypesTest, EqualityOperators) {
   struct A {
     int a_value;
-    bool operator==(const A& other) { return a_value == other.a_value; }
+    bool operator==(const A& other) const { return a_value == other.a_value; }
   };
   struct B {
     double b_value;
-    bool operator==(const B& other) { return b_value == other.b_value; }
+    bool operator==(const B& other) const { return b_value == other.b_value; }
   };
 
   AggregateType<A, B> a;

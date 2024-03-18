@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_WORLD_OBJECTS_OBJECT_WORLD_CLIENT_H_
 #define INTRINSIC_WORLD_OBJECTS_OBJECT_WORLD_CLIENT_H_
@@ -67,9 +65,9 @@ class ObjectWorldClient {
   absl::StatusOr<WorldObject> GetObject(const WorldObjectName& name) const;
 
   // Returns a local copy of the object associated with the name of the given
-  // equipment handle.
+  // resource handle.
   absl::StatusOr<WorldObject> GetObject(
-      const intrinsic_proto::skills::EquipmentHandle& equipment_handle) const;
+      const intrinsic_proto::skills::ResourceHandle& resource_handle) const;
 
   // Returns a fresh local copy of the remote object with the same id as the
   // given local object copy.
@@ -111,10 +109,10 @@ class ObjectWorldClient {
       const WorldObjectName& name) const;
 
   // Returns a local copy of the robot part object associated with the name of
-  // the given equipment handle. Returns an error if the referenced object is
+  // the given resource handle. Returns an error if the referenced object is
   // not a robot part.
   absl::StatusOr<KinematicObject> GetKinematicObject(
-      const intrinsic_proto::skills::EquipmentHandle& equipment_handle) const;
+      const intrinsic_proto::skills::ResourceHandle& resource_handle) const;
 
   // Returns a fresh local copy of the remote kinematic object with the same id
   // as the given local object copy.
@@ -137,9 +135,9 @@ class ObjectWorldClient {
                                  const FrameName& frame_name) const;
 
   // Returns a local copy of the frame with the given name under the object
-  // associated with the name of the given equipment handle.
+  // associated with the name of the given resource handle.
   absl::StatusOr<Frame> GetFrame(
-      const intrinsic_proto::skills::EquipmentHandle& object_equipment_handle,
+      const intrinsic_proto::skills::ResourceHandle& object_resource_handle,
       const FrameName& frame_name) const;
 
   // Returns a fresh local copy of the remote frame with the same id as the

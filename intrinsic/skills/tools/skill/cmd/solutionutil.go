@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package solutionutil provides helper functions for resolving clusters from solution names
 package solutionutil
@@ -12,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	clusterdiscoverygrpcpb "intrinsic/frontend/cloud/api/clusterdiscovery_grpc_go_proto"
-	"intrinsic/tools/inctl/cmd/solution/solution"
+	"intrinsic/tools/inctl/cmd/solution"
 )
 
 // GetClusterNameFromSolution returns the cluster in which a solution currently runs.

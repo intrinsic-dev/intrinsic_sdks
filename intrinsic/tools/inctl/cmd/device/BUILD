@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("//bazel:go_macros.bzl", "go_library")
 
@@ -16,8 +14,8 @@ go_library(
     deps = [
         ":projectclient",
         "//intrinsic/frontend/cloud/devicemanager/shared",
-        "//intrinsic/tools/inctl/auth",
         "//intrinsic/tools/inctl/cmd:root",
+        "//intrinsic/tools/inctl/util:orgutil",
         "//intrinsic/tools/inctl/util:printer",
         "//intrinsic/tools/inctl/util:viperutil",
         "@com_github_cenkalti_backoff_v4//:go_default_library",
@@ -31,6 +29,7 @@ go_library(
     name = "projectclient",
     srcs = ["projectclient.go"],
     deps = [
+        "//intrinsic/skills/tools/skill/cmd:dialerutil",
         "//intrinsic/tools/inctl/auth",
     ],
 )

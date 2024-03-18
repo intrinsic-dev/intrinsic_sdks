@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package listreleased defines the skill list_released command which lists skills in a catalog.
 package listreleased
@@ -10,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	skillCmd "intrinsic/skills/tools/skill/cmd/cmd"
+	skillCmd "intrinsic/skills/tools/skill/cmd"
 	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 )

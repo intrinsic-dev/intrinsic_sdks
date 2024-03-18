@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/icon/equipment/equipment_utils.h"
 
@@ -82,71 +80,70 @@ absl::StatusOr<IconEquipment> ConnectToIconEquipment(
   return out;
 }
 
-intrinsic_proto::skills::EquipmentSelector
-Icon2EquipmentSelectorBuilder::Build() const {
-  intrinsic_proto::skills::EquipmentSelector selector;
-  selector.add_equipment_type_names(kIcon2ConnectionKey);
+intrinsic_proto::skills::ResourceSelector Icon2ResourceSelectorBuilder::Build()
+    const {
+  intrinsic_proto::skills::ResourceSelector selector;
+  selector.add_capability_names(kIcon2ConnectionKey);
   if (position_part_) {
-    selector.add_equipment_type_names(kIcon2PositionPartKey);
+    selector.add_capability_names(kIcon2PositionPartKey);
   }
   if (torque_part_) {
-    selector.add_equipment_type_names(kIcon2TorquePartKey);
+    selector.add_capability_names(kIcon2TorquePartKey);
   }
   if (gripper_part_) {
-    selector.add_equipment_type_names(kIcon2GripperPartKey);
+    selector.add_capability_names(kIcon2GripperPartKey);
   }
   if (adio_part_) {
-    selector.add_equipment_type_names(kIcon2AdioPartKey);
+    selector.add_capability_names(kIcon2AdioPartKey);
   }
   if (force_torque_sensor_part_) {
-    selector.add_equipment_type_names(kIcon2ForceTorqueSensorPartKey);
+    selector.add_capability_names(kIcon2ForceTorqueSensorPartKey);
   }
   if (observation_stream_) {
-    selector.add_equipment_type_names(kIconRobotObservationStreamParamsKey);
+    selector.add_capability_names(kIconRobotObservationStreamParamsKey);
   }
   if (rangefinder_part_) {
-    selector.add_equipment_type_names(kIcon2RangefinderPartKey);
+    selector.add_capability_names(kIcon2RangefinderPartKey);
   }
   return selector;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithPositionControlledPart() {
+Icon2ResourceSelectorBuilder&
+Icon2ResourceSelectorBuilder::WithPositionControlledPart() {
   position_part_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithTorqueControlledPart() {
+Icon2ResourceSelectorBuilder&
+Icon2ResourceSelectorBuilder::WithTorqueControlledPart() {
   torque_part_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithGripperPart() {
+Icon2ResourceSelectorBuilder& Icon2ResourceSelectorBuilder::WithGripperPart() {
   gripper_part_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder& Icon2EquipmentSelectorBuilder::WithAdioPart() {
+Icon2ResourceSelectorBuilder& Icon2ResourceSelectorBuilder::WithAdioPart() {
   adio_part_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithForceTorqueSensorPart() {
+Icon2ResourceSelectorBuilder&
+Icon2ResourceSelectorBuilder::WithForceTorqueSensorPart() {
   force_torque_sensor_part_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithObservationStream() {
+Icon2ResourceSelectorBuilder&
+Icon2ResourceSelectorBuilder::WithObservationStream() {
   observation_stream_ = true;
   return *this;
 }
 
-Icon2EquipmentSelectorBuilder&
-Icon2EquipmentSelectorBuilder::WithRangefinderPart() {
+Icon2ResourceSelectorBuilder&
+Icon2ResourceSelectorBuilder::WithRangefinderPart() {
   rangefinder_part_ = true;
   return *this;
 }

@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 package device
 
@@ -11,24 +9,36 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/spf13/cobra"
-	"intrinsic/frontend/cloud/devicemanager/shared/shared"
-	"intrinsic/tools/inctl/auth/auth"
+	"intrinsic/frontend/cloud/devicemanager/shared"
 	"intrinsic/tools/inctl/cmd/device/projectclient"
+	"intrinsic/tools/inctl/util/orgutil"
+)
+
+const (
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+	hostnameRegexString = `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`
 )
 
 var (
 	deviceRole    = ""
+	deviceRegion  = ""
 	privateDevice = false
+	replaceDevice = false
 )
+
+func validHostname(hostname string) bool {
+	return regexp.MustCompile(hostnameRegexString).MatchString(hostname)
+}
 
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Tool to register hardware in setup flow",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectName := viperLocal.GetString(keyProject)
-		orgName := viperLocal.GetString(keyOrganization)
+		projectName := viperLocal.GetString(orgutil.KeyProject)
+		orgName := viperLocal.GetString(orgutil.KeyOrganization)
 		hostname := viperLocal.GetString(keyHostname)
 		if hostname == "" {
 			hostname = deviceID
@@ -38,16 +48,14 @@ var registerCmd = &cobra.Command{
 			return fmt.Errorf("invalid arguments")
 		}
 
+		if !validHostname(hostname) {
+			fmt.Printf("%q is not a valid as hostname. Provide a valid hostname.\nSee https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names for more information.\n", hostname)
+			return fmt.Errorf("invalid hostname")
+		}
+
 		client, err := projectclient.Client(projectName, orgName)
 		if err != nil {
 			return fmt.Errorf("get client for project: %w", err)
-		}
-		if projectName == "" {
-			info, err := auth.NewStore().ReadOrgInfo(orgName)
-			if err != nil {
-				return fmt.Errorf("get org info: %w", err)
-			}
-			projectName = info.Project
 		}
 
 		// This map represents a json mapping of the config struct which lives in GoB:
@@ -84,6 +92,8 @@ var registerCmd = &cobra.Command{
 			Role:     deviceRole,
 			Cluster:  clusterName,
 			Private:  privateDevice,
+			Region:   deviceRegion,
+			Replace:  replaceDevice,
 		}
 		if testID := os.Getenv("INCTL_CREATED_BY_TEST"); testID != "" {
 			// This is an automated test.
@@ -102,15 +112,6 @@ var registerCmd = &cobra.Command{
 
 		switch resp.StatusCode {
 		case http.StatusOK:
-			// copybara_strip:begin
-			if deviceRole == "control-plane" {
-				fmt.Printf("Use these commands to add the cluster to your kubeconfig and connect via k9s:\n")
-				fmt.Printf(`	kubectl config set-cluster "%s" --server="https://www.endpoints.%s.cloud.goog/apis/core.kubernetes-relay/client/%s"`+"\n",
-					hostname, projectName, hostname)
-				fmt.Printf(`	kubectl config set-context "%s" --cluster "%s" --namespace "default" --user "gke_%s_us-central1-a_cloud-robotics"`+"\n",
-					hostname, hostname, projectName)
-			}
-			// copybara_strip:end
 			return nil
 		case http.StatusConflict:
 			return fmt.Errorf("cluster %q already exists. Cannot create it again. Please use a unique value for --hostname", hostname)
@@ -118,6 +119,11 @@ var registerCmd = &cobra.Command{
 			return fmt.Errorf("cluster %q does not exist. please make sure that --cluster_name matches the --hostname from a previously registered cluster.\nIf you want to create a new cluster, do not use --device_role", clusterName)
 		case http.StatusNotFound:
 			return fmt.Errorf("device %q does not exist. please make sure you have the exact id from the device you are trying to register", deviceID)
+		case http.StatusForbidden:
+			if orgName == "" {
+				orgName = fmt.Sprintf("defaultorg@%s", projectName)
+			}
+			return fmt.Errorf("you do not have the necessary permissions to add a cluster on organization %q.\nOpen a support request to get the 'clusterProvisioner' role", orgName)
 		default:
 			io.Copy(os.Stderr, resp.Body)
 
@@ -130,4 +136,6 @@ func init() {
 
 	registerCmd.Flags().StringVarP(&deviceRole, "device_role", "", "control-plane", "The role the device has in the cluster. Either 'control-plane' or 'worker'")
 	registerCmd.Flags().BoolVarP(&privateDevice, "private", "", false, "If set to 'true', the device will not be visible to other organization members")
+	registerCmd.Flags().StringVarP(&deviceRegion, "region", "", "unspecified", "This can be used for inventory tracking")
+	registerCmd.Flags().BoolVarP(&replaceDevice, "replace", "", false, "If set to 'true', an existing cluster with the same name will be replaced.\nThis is equivalent to calling 'inctl cluster delete' first")
 }

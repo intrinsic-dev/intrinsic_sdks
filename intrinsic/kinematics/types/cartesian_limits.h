@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_KINEMATICS_TYPES_CARTESIAN_LIMITS_H_
 #define INTRINSIC_KINEMATICS_TYPES_CARTESIAN_LIMITS_H_
@@ -13,6 +11,9 @@ namespace intrinsic {
 // acceleration and jerk, as well as rotational velocity, acceleration and jerk.
 struct CartesianLimits {
  public:
+  // Default constructs the Cartesian Limits with unlimited values.
+  CartesianLimits();
+
   // Sets each limit range to (-infinity, infinity).
   void SetUnlimited();
 

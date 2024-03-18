@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Utility functions for skills related proto conversions."""
 
@@ -21,7 +19,9 @@ from pybind11_abseil import status
 
 # This is the recommended regex for semver. It is copied from
 # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-_SEMVER_REGEX_PATTERN: str = r'^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+_SEMVER_REGEX_PATTERN: str = (
+    r'^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+)
 
 
 def proto_from_skill(
@@ -55,7 +55,7 @@ def proto_from_skill(
     proto.doc_string = skill.__doc__.rstrip()
 
   for key, val in skill.required_equipment().items():
-    proto.equipment_selectors[key].CopyFrom(val)
+    proto.resource_selectors[key].CopyFrom(val)
 
   proto.parameter_description.parameter_descriptor_fileset.CopyFrom(
       descriptors.gen_file_descriptor_set(skill.get_parameter_descriptor())
@@ -109,7 +109,7 @@ def proto_from_skill_manifest(
   )
 
   for key, val in manifest.dependencies.required_equipment.items():
-    skill.equipment_selectors[key].CopyFrom(val)
+    skill.resource_selectors[key].CopyFrom(val)
 
   add_file_descriptor_set_without_source_code_from_manifest(
       manifest, file_descriptor_set, skill

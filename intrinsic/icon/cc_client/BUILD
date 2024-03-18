@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 package(
     default_visibility = ["//visibility:public"],
@@ -73,6 +71,7 @@ cc_library(
         "//intrinsic/platform/common/buffers:realtime_write_queue",
         "//intrinsic/util:atomic_sequence_num",
         "//intrinsic/util:int_id",
+        "//intrinsic/util:proto_time",
         "//intrinsic/util/grpc:channel_interface",
         "//intrinsic/util/thread",
         "@com_github_grpc_grpc//:grpc++",

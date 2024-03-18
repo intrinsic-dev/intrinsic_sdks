@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@rules_python//python:defs.bzl", "py_library")
 load("@rules_python//python:packaging.bzl", "py_package", "py_wheel")
@@ -12,18 +10,62 @@ py_library(
     srcs = ["skill_interface.py"],
     srcs_version = "PY3",
     deps = [
+        ":execute_context",
+        ":execute_request",
+        ":get_footprint_context",
+        ":get_footprint_request",
+        ":skill_canceller",
+        "//intrinsic/skills/proto:equipment_py_pb2",
+        "//intrinsic/skills/proto:footprint_py_pb2",
+        "//intrinsic/skills/proto:skill_service_py_pb2",
+        "@com_google_protobuf//:protobuf_python",
+    ],
+)
+
+py_library(
+    name = "skill_interface_utils",
+    srcs = ["skill_interface_utils.py"],
+    deps = [
+        ":skill_interface",
+        "//intrinsic/skills/internal:execute_context_impl_py",
+    ],
+)
+
+py_library(
+    name = "get_footprint_context",
+    srcs = ["get_footprint_context.py"],
+    deps = [
+        "//intrinsic/geometry/service:geometry_service_py_pb2_grpc",
+        "//intrinsic/motion_planning:motion_planner_client_py",
+        "//intrinsic/world/python:object_world_client",
+        "//intrinsic/world/python:object_world_ids",
+        "//intrinsic/world/python:object_world_resources",
+    ],
+)
+
+py_library(
+    name = "get_footprint_request",
+    srcs = ["get_footprint_request.py"],
+    deps = ["@com_google_protobuf//:protobuf_python"],
+)
+
+py_library(
+    name = "execute_context",
+    srcs = ["execute_context.py"],
+    deps = [
         ":skill_canceller",
         "//intrinsic/geometry/service:geometry_service_py_pb2_grpc",
         "//intrinsic/logging/proto:context_py_pb2",
         "//intrinsic/motion_planning:motion_planner_client_py",
         "//intrinsic/skills/proto:equipment_py_pb2",
-        "//intrinsic/skills/proto:footprint_py_pb2",
-        "//intrinsic/skills/proto:skill_service_py_pb2",
         "//intrinsic/world/python:object_world_client",
-        "//intrinsic/world/python:object_world_ids",
-        "//intrinsic/world/python:object_world_resources",
-        "@com_google_protobuf//:protobuf_python",
     ],
+)
+
+py_library(
+    name = "execute_request",
+    srcs = ["execute_request.py"],
+    deps = ["@com_google_protobuf//:protobuf_python"],
 )
 
 py_library(

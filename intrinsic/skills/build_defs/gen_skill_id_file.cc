@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include <cstdlib>
 #include <string>
@@ -30,8 +28,7 @@ absl::Status GenSkillIdFile(absl::string_view manifest_pbbin_filename,
       intrinsic::GetBinaryProto<intrinsic_proto::skills::Manifest>(
           manifest_pbbin_filename));
 
-  LOG(INFO) << "writing: " << manifest.id().DebugString()
-            << " to: " << output_pbbin_filename;
+  LOG(INFO) << "writing: " << manifest.id() << " to: " << output_pbbin_filename;
   return intrinsic::SetBinaryProto(output_pbbin_filename, manifest.id());
 }
 

@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_ICON_CC_CLIENT_SESSION_H_
 #define INTRINSIC_ICON_CC_CLIENT_SESSION_H_
@@ -207,21 +205,29 @@ class Session {
   // before each gRPC request to obtain a ::grpc::ClientContext.  This provides
   // an opportunity to set client metadata, or other ClientContext settings, for
   // all ICON API requests made by the Session.
+  //
+  // `deadline` is an optional deadline for establishing the session. If given,
+  // it overrides any deadline set by the ClientContext factory.
   static absl::StatusOr<std::unique_ptr<Session>> Start(
       std::shared_ptr<ChannelInterface> icon_channel,
       absl::Span<const std::string> parts,
-      const intrinsic_proto::data_logger::Context& context = {});
+      const intrinsic_proto::data_logger::Context& context = {},
+      std::optional<absl::Time> deadline = std::nullopt);
 
   // Creates a Session for the `parts` and starts it.
   //
   // The resulting session uses default-constructed ::grpc::ClientContext
   // objects.
+  //
+  // `deadline` is an optional deadline for establishing the session. If given,
+  // it overrides any deadline set by the ClientContext factory.
   static absl::StatusOr<std::unique_ptr<Session>> Start(
       std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
       absl::Span<const std::string> parts,
       const ClientContextFactory& client_context_factory =
           DefaultClientContextFactory,
-      const intrinsic_proto::data_logger::Context& context = {});
+      const intrinsic_proto::data_logger::Context& context = {},
+      std::optional<absl::Time> deadline = std::nullopt);
 
   // Disallow move.
   Session(Session&&) = delete;
@@ -287,10 +293,6 @@ class Session {
   // N.B. This essentially invalidates all Action and ReactionHandle objects
   // obtained from this Session.
   absl::Status ClearAllActionsAndReactions();
-
-  // Use ClearAllActionsAndReactions instead.
-  ABSL_DEPRECATED("use ClearAllActionsAndReactions() instead")
-  absl::Status ClearAllActions();
 
   // Starts the given actions on the server.
   //
@@ -377,7 +379,8 @@ class Session {
       std::shared_ptr<ChannelInterface> icon_channel,
       std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
       absl::Span<const std::string> parts,
-      const ClientContextFactory& client_context_factory);
+      const ClientContextFactory& client_context_factory,
+      std::optional<absl::Time> deadline);
 
   Session(std::shared_ptr<ChannelInterface> icon_channel,
           std::unique_ptr<grpc::ClientContext> action_context,
@@ -391,7 +394,8 @@ class Session {
               watcher_stream,
           std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
           SessionId session_id,
-          const intrinsic_proto::data_logger::Context& context);
+          const intrinsic_proto::data_logger::Context& context,
+          ClientContextFactory client_context_factory);
 
   // Creates a vector of actions from the `action_descriptors`.
   static std::vector<Action> MakeActionVector(
@@ -482,6 +486,11 @@ class Session {
       reaction_handle_to_id_and_loc_;
 
   SessionId session_id_;
+
+  // Factory function that produces ::grpc::ClientContext objects before each
+  // gRPC request. This is required to make new grpc calls on the fly since we
+  // need to propagate the original icon connection parameters stored in here.
+  ClientContextFactory client_context_factory_;
 };
 
 }  // namespace icon

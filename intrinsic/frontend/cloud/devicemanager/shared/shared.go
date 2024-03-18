@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package shared provides data types that client tooling uses as well for static typed api boundaries.
 package shared
@@ -14,6 +12,8 @@ type ConfigureData struct {
 	Role     string `json:"role"`
 	Cluster  string `json:"cluster"`
 	Private  bool   `json:"private"`
+	Region   string `json:"region"`
+	Replace  bool   `json:"replace"`
 	// CreatedByTest is only used for automated testing, and contains the ID of the test that is
 	// registering this device. It is used to label the resources (in particular the Robot CR) so we
 	// can clean it up.

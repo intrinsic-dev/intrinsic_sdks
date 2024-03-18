@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 # This package contains internal proto definition required for implementing the
 # perception services.
@@ -10,29 +8,6 @@ load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
 
 package(default_visibility = ["//visibility:public"])
-
-proto_library(
-    name = "pose_estimation_service_proto",
-    srcs = ["pose_estimation_service.proto"],
-    deps = [
-        "//intrinsic/math/proto:affine_proto",
-        "//intrinsic/math/proto:pose_proto",
-        "//intrinsic/skills/proto:equipment_proto",
-        "@com_google_protobuf//:empty_proto",
-    ],
-)
-
-py_proto_library(
-    name = "pose_estimation_service_py_pb2",
-    deps = [":pose_estimation_service_proto"],
-)
-
-py_grpc_library(
-    name = "pose_estimation_service_pb2_grpc",
-    srcs = [":pose_estimation_service_proto"],
-    grpc_library = requirement("grpcio"),
-    deps = [":pose_estimation_service_py_pb2"],
-)
 
 proto_library(
     name = "camera_server_proto",

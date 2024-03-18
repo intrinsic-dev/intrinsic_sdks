@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/motion_planning/motion_planner_client.h"
 
@@ -296,5 +294,6 @@ MotionPlannerClient::ClearCache() {
       &ctx, intrinsic_proto::motion_planning::ClearCacheRequest(), &response));
   return response;
 }
+
 }  // namespace motion_planning
 }  // namespace intrinsic

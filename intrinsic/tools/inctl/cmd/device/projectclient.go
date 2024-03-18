@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package projectclient provides a http client wrapper that authenticates requests via apikeys.
 package projectclient
@@ -8,14 +6,16 @@ package projectclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
-	"strings"
 
-	"intrinsic/tools/inctl/auth/auth"
+	"intrinsic/skills/tools/skill/cmd/dialerutil"
+	"intrinsic/tools/inctl/auth"
 )
 
 var (
@@ -36,7 +36,7 @@ type AuthedClient struct {
 func (c *AuthedClient) Do(req *http.Request) (*http.Response, error) {
 	req, err := c.tokenSource.HTTPAuthorization(req)
 	if c.organization != "" {
-		req.AddCookie(&http.Cookie{Name: "org-id", Value: c.organization})
+		req.AddCookie(&http.Cookie{Name: auth.OrgIDHeader, Value: c.organization})
 	}
 
 	if err != nil {
@@ -48,19 +48,15 @@ func (c *AuthedClient) Do(req *http.Request) (*http.Response, error) {
 
 // Client returns a http.Client compatible that injects auth for the project into every request.
 func Client(projectName string, orgName string) (AuthedClient, error) {
-	if projectName == "" {
-		info, err := auth.NewStore().ReadOrgInfo(orgName)
-		if err != nil {
-			return AuthedClient{}, fmt.Errorf("get org info: %w", err)
-		}
-
-		projectName = info.Project
-		orgName = strings.Split(orgName, "@")[0]
-	}
-
 	configuration, err := auth.NewStore().GetConfiguration(projectName)
 	if err != nil {
-		return AuthedClient{}, fmt.Errorf("get credential store: %w", err)
+		if errors.Is(err, os.ErrNotExist) {
+			return AuthedClient{}, &dialerutil.ErrCredentialsNotFound{
+				CredentialName: projectName,
+				Err:            err,
+			}
+		}
+		return AuthedClient{}, fmt.Errorf("get configuration: %w", err)
 	}
 
 	token, err := configuration.GetDefaultCredentials()

@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -47,7 +45,7 @@ message BehaviorCall {
     }
   }
   // This is a map from slot to equipment name or reference.
-  // The name can then be used to retrieve an equipment handle.
+  // The name can then be used to retrieve a resource handle.
   // The reference will be instantiated from a BehaviorCall.
   map<string, EquipmentSpecification> equipment = 5;
 

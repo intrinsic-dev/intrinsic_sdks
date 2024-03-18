@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_SKILLS_INTERNAL_SKILL_SERVICE_IMPL_H_
 #define INTRINSIC_SKILLS_INTERNAL_SKILL_SERVICE_IMPL_H_
@@ -8,13 +6,13 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -22,15 +20,14 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "google/longrunning/operations.pb.h"
-#include "google/protobuf/any.pb.h"
 #include "google/protobuf/empty.pb.h"
+#include "google/protobuf/message.h"
 #include "grpcpp/server_context.h"
 #include "grpcpp/support/status.h"
 #include "intrinsic/motion_planning/proto/motion_planner_service.grpc.pb.h"
 #include "intrinsic/skills/cc/skill_canceller.h"
 #include "intrinsic/skills/cc/skill_interface.h"
-#include "intrinsic/skills/internal/execute_context_impl.h"
-#include "intrinsic/skills/internal/skill_registry_client_interface.h"
+#include "intrinsic/skills/internal/runtime_data.h"
 #include "intrinsic/skills/internal/skill_repository.h"
 #include "intrinsic/skills/proto/skill_service.grpc.pb.h"
 #include "intrinsic/skills/proto/skill_service.pb.h"
@@ -43,57 +40,60 @@ namespace skills {
 
 namespace internal {
 
-// Maximum number of operations to keep in a SkillExecutionOperations instance.
+// Maximum number of operations to keep in a SkillOperations instance.
 // This value places a hard upper limit on the number of one type of skill that
 // can execute simultaneously.
 constexpr int32_t kMaxNumOperations = 100;
 
-// Encapsulates a single skill execution operation.
-class SkillExecutionOperation {
+// Encapsulates a single skill operation.
+class SkillOperation {
  public:
-  // Creates a new operation from an ExecuteRequest.
-  static absl::StatusOr<std::unique_ptr<SkillExecutionOperation>> Create(
-      const intrinsic_proto::skills::ExecuteRequest* request,
-      const std::optional<::google::protobuf::Any>& param_defaults,
-      std::shared_ptr<SkillCancellationManager> canceller);
+  SkillOperation(absl::string_view name,
+                 const internal::SkillRuntimeData& runtime_data)
+      : canceller_(std::make_shared<SkillCancellationManager>(
+            runtime_data.GetExecutionOptions().GetCancellationReadyTimeout(),
+            /*operation_name=*/name)),
+        runtime_data_(runtime_data) {
+    absl::MutexLock lock(&operation_mutex_);
+    operation_.set_name(name);
+  }
 
-  // Starts executing the specified skill.
-  absl::Status StartExecute(std::unique_ptr<SkillExecuteInterface> skill,
-                            std::unique_ptr<ExecuteContextImpl> context)
-      ABSL_LOCKS_EXCLUDED(thread_mutex_);
+  // Supports cooperative cancellation of the operation.
+  std::shared_ptr<SkillCancellationManager> canceller() { return canceller_; }
 
   // True if the skill execution has finished.
-  bool GetFinished() { return finished_notification_.HasBeenNotified(); }
+  bool finished() { return finished_notification_.HasBeenNotified(); }
 
-  // A unique name for the skill execution operation.
-  std::string GetName() {
+  // A unique name for the operation.
+  std::string name() {
     absl::ReaderMutexLock lock(&operation_mutex_);
     return operation_.name();
   }
 
-  // Gets the id_version of the skill executed by this operation.
-  // id_version is defined by: intrinsic_proto.catalog.SkillMeta.id_version
-  std::string GetSkillIdVersion() const { return id_version_; }
-
-  // Gets the ExecuteRequest associated with this operation, if any.
-  const std::optional<intrinsic_proto::skills::ExecuteRequest>&
-  GetExecuteRequest() const {
-    return execute_request_;
-  }
-
   // A copy of the underlying Operation proto.
-  google::longrunning::Operation GetOperation() {
+  google::longrunning::Operation operation() {
     absl::ReaderMutexLock lock(&operation_mutex_);
     return operation_;
   }
 
+  // The skill's runtime data.
+  const internal::SkillRuntimeData& runtime_data() const {
+    return runtime_data_;
+  }
+
+  // Starts executing the skill operation.
+  absl::Status Start(
+      absl::AnyInvocable<
+          absl::StatusOr<std::unique_ptr<::google::protobuf::Message>>()>
+          op,
+      absl::string_view op_name) ABSL_LOCKS_EXCLUDED(thread_mutex_);
+
   // Requests cancellation of the operation.
   absl::Status RequestCancellation();
 
-  // Waits for execution of the skill to finish.
+  // Waits for the operation to finish.
   //
-  // Returns the state of the operation when either skill execution finishes or
-  // the wait timed out.
+  // Returns the state of the operation when it finished or the wait timed out.
   absl::StatusOr<google::longrunning::Operation> WaitExecution(
       absl::Time deadline);
 
@@ -108,56 +108,31 @@ class SkillExecutionOperation {
       ABSL_LOCKS_EXCLUDED(thread_mutex_);
 
  private:
-  SkillExecutionOperation(
-      absl::string_view instance_name, absl::string_view id_version,
-      const ::google::protobuf::Any& params,
-      const std::optional<::google::protobuf::Any>& param_defaults,
-      std::shared_ptr<SkillCancellationManager> canceller,
-      const std::optional<intrinsic_proto::skills::ExecuteRequest>&
-          execute_request)
-      : execute_request_(execute_request),
-        id_version_(id_version),
-        params_(params),
-        param_defaults_(param_defaults),
-        canceller_(canceller) {
-    absl::MutexLock lock(&operation_mutex_);
-    operation_.set_name(instance_name);
-  }
-
-  // Marks the operation as finished, with an error and/or result.
-  absl::Status Finish(const ::google::rpc::Status* error,
-                      const intrinsic_proto::skills::ExecuteResult* result)
-      ABSL_LOCKS_EXCLUDED(operation_mutex_);
-
-  std::optional<intrinsic_proto::skills::ExecuteRequest> execute_request_;
-
-  std::string id_version_;
-  ::google::protobuf::Any params_;
-  std::optional<::google::protobuf::Any> param_defaults_;
-
   std::shared_ptr<SkillCancellationManager> canceller_;
-
-  // Notified when the operation is finished.
-  absl::Notification finished_notification_;
 
   absl::Mutex operation_mutex_;
   google::longrunning::Operation operation_ ABSL_GUARDED_BY(operation_mutex_);
+
+  internal::SkillRuntimeData runtime_data_;
+
+  // Notified when the operation is finished.
+  absl::Notification finished_notification_;
 
   absl::Mutex thread_mutex_;
   std::unique_ptr<Thread> thread_ ABSL_GUARDED_BY(thread_mutex_);
 };
 
 // Cleans up skill execution operations once they are finished.
-class SkillExecutionOperationCleaner {
+class SkillOperationCleaner {
  public:
-  SkillExecutionOperationCleaner() {
+  SkillOperationCleaner() {
     absl::MutexLock lock(&queue_mutex_);
     queue_processed_ = std::make_shared<absl::Notification>();
     queue_processed_->Notify();
   }
 
   // Start watching an operation, and clean it up when it finishes.
-  absl::Status Watch(std::shared_ptr<SkillExecutionOperation> operation)
+  absl::Status Watch(std::shared_ptr<SkillOperation> operation)
       ABSL_LOCKS_EXCLUDED(queue_mutex_, thread_mutex_);
 
   // Waits for all operations to be cleaned up and for the queue processing
@@ -178,7 +153,7 @@ class SkillExecutionOperationCleaner {
       ABSL_SHARED_LOCKS_REQUIRED(thread_mutex_);
 
   absl::Mutex queue_mutex_;
-  std::deque<std::shared_ptr<SkillExecutionOperation>> queue_
+  std::deque<std::shared_ptr<SkillOperation>> queue_
       ABSL_GUARDED_BY(queue_mutex_);
   std::shared_ptr<absl::Notification> queue_processed_
       ABSL_GUARDED_BY(queue_mutex_);
@@ -187,21 +162,16 @@ class SkillExecutionOperationCleaner {
   std::unique_ptr<Thread> thread_ ABSL_GUARDED_BY(thread_mutex_);
 };
 
-// A collection of skill execution operations.
-class SkillExecutionOperations {
+// A collection of skill operations.
+class SkillOperations {
  public:
-  // Creates a new SkillExecutionOperation and starts executing the skill.
-  absl::StatusOr<std::shared_ptr<SkillExecutionOperation>> StartExecute(
-      std::unique_ptr<SkillExecuteInterface> skill,
-      const intrinsic_proto::skills::ExecuteRequest* request,
-      const std::optional<::google::protobuf::Any>& param_defaults,
-      std::unique_ptr<ExecuteContextImpl> context,
-      std::shared_ptr<SkillCancellationManager> canceller,
-      google::longrunning::Operation& initial_operation);
+  // Adds an operation to the collection.
+  absl::Status Add(std::shared_ptr<SkillOperation> operation)
+      ABSL_LOCKS_EXCLUDED(update_mutex_);
 
   // Gets an operation by name.
-  absl::StatusOr<std::shared_ptr<SkillExecutionOperation>> Get(
-      absl::string_view name) ABSL_LOCKS_EXCLUDED(update_mutex_);
+  absl::StatusOr<std::shared_ptr<SkillOperation>> Get(absl::string_view name)
+      ABSL_LOCKS_EXCLUDED(update_mutex_);
 
   // Clears all operations in the collection.
   //
@@ -211,35 +181,73 @@ class SkillExecutionOperations {
   absl::Status Clear(bool wait_for_operations)
       ABSL_LOCKS_EXCLUDED(update_mutex_);
 
-  // Returns the SkillIdVersions of operations in order of operation addition.
-  // id_version is defined by: intrinsic_proto.catalog.SkillMeta.id_version
-  std::vector<std::string> GetOperationSkillIdVersions() const
-      ABSL_LOCKS_EXCLUDED(update_mutex_);
-
-  // Returns the ExecuteRequests of operations in order of operation addition.
-  std::vector<intrinsic_proto::skills::ExecuteRequest> GetExecuteRequests()
-      const ABSL_LOCKS_EXCLUDED(update_mutex_);
-
  private:
-  // Adds an operation to the collection.
-  absl::Status Add(std::shared_ptr<SkillExecutionOperation> operation)
-      ABSL_LOCKS_EXCLUDED(update_mutex_);
-
   // Protects access while updates occur.
   mutable absl::Mutex update_mutex_;
 
   // Tracked operation names, in order of addition, so we can remove the oldest
   // finished operation whenever operations_ is full.
   std::vector<std::string> operation_names_ ABSL_GUARDED_BY(update_mutex_);
+
   // Map from operation name to operation. Limited in `Add` to have at most
   // kMaxNumOperations elements.
-  absl::flat_hash_map<std::string, std::shared_ptr<SkillExecutionOperation>>
-      operations_ ABSL_GUARDED_BY(update_mutex_);
+  absl::flat_hash_map<std::string, std::shared_ptr<SkillOperation>> operations_
+      ABSL_GUARDED_BY(update_mutex_);
 
-  SkillExecutionOperationCleaner cleaner_;
+  SkillOperationCleaner cleaner_;
 };
 
 }  // namespace internal
+
+// Can be provided to the service to inspect the requests that it handles.
+class RequestWatcher {
+ public:
+  RequestWatcher() = default;
+
+  // Not copyable or movable, unless needed in the future.
+  RequestWatcher(const RequestWatcher&) = delete;
+  RequestWatcher& operator=(const RequestWatcher&) = delete;
+  RequestWatcher(const RequestWatcher&&) = delete;
+  RequestWatcher& operator=(const RequestWatcher&&) = delete;
+
+  // Adds a request.
+  void AddRequest(const ::google::protobuf::Message& request) {
+    google::protobuf::Any request_any;
+    request_any.PackFrom(request);
+    requests_.push_back(request_any);
+  }
+
+  // Gets the list of skill IDVersions of requests that match the template type
+  // TRequest.
+  template <typename TRequest>
+  std::vector<std::string> GetSkillIdVersions() const {
+    std::vector<std::string> skill_id_versions;
+    for (const auto& request : GetRequests<TRequest>()) {
+      skill_id_versions.push_back(request.instance().id_version());
+    }
+    return skill_id_versions;
+  }
+
+  // Gets the list of added requests that match the template type TRequest.
+  template <typename TRequest>
+  std::vector<TRequest> GetRequests() const {
+    std::vector<TRequest> requests;
+    for (const auto& request_any : requests_) {
+      if (!request_any.Is<TRequest>()) continue;
+
+      TRequest request;
+      request_any.UnpackTo(&request);
+      requests.push_back(request);
+    }
+    return requests;
+  }
+
+  // Clears any accumulated requests.
+  void Clear() { requests_.clear(); }
+
+ private:
+  std::vector<::google::protobuf::Any> requests_;
+};
 
 class SkillProjectorServiceImpl
     : public intrinsic_proto::skills::Projector::Service {
@@ -254,8 +262,7 @@ class SkillProjectorServiceImpl
       SkillRepository& skill_repository,
       std::shared_ptr<ObjectWorldService::StubInterface> object_world_service,
       std::shared_ptr<MotionPlannerService::StubInterface>
-          motion_planner_service,
-      SkillRegistryClientInterface& skill_registry_client);
+          motion_planner_service);
 
   grpc::Status GetFootprint(
       grpc::ServerContext* context,
@@ -273,7 +280,6 @@ class SkillProjectorServiceImpl
   std::shared_ptr<ObjectWorldService::StubInterface> object_world_service_;
   std::shared_ptr<MotionPlannerService::StubInterface> motion_planner_service_;
   SkillRepository& skill_repository_;
-  SkillRegistryClientInterface& skill_registry_client_;
   absl::Mutex message_mutex_;
   google::protobuf::MessageFactory* message_factory_
       ABSL_GUARDED_BY(message_mutex_);
@@ -290,18 +296,26 @@ class SkillExecutorServiceImpl
  public:
   // All of the given references will be kept for the lifetime of the created
   // instance.
+  //
+  // A request watcher can be specified for testing. The service will use it to
+  // record all requests that it handles.
   explicit SkillExecutorServiceImpl(
       SkillRepository& skill_repository,
       std::shared_ptr<ObjectWorldService::StubInterface> object_world_service,
       std::shared_ptr<MotionPlannerService::StubInterface>
           motion_planner_service,
-      SkillRegistryClientInterface& skill_registry_client);
+      RequestWatcher* request_watcher = nullptr);
 
   ~SkillExecutorServiceImpl() override;
 
   grpc::Status StartExecute(
       grpc::ServerContext* context,
       const intrinsic_proto::skills::ExecuteRequest* request,
+      google::longrunning::Operation* result) override;
+
+  grpc::Status StartPreview(
+      grpc::ServerContext* context,
+      const intrinsic_proto::skills::PreviewRequest* request,
       google::longrunning::Operation* result) override;
 
   grpc::Status GetOperation(
@@ -323,25 +337,22 @@ class SkillExecutorServiceImpl
                                const google::protobuf::Empty* request,
                                google::protobuf::Empty* result) override;
 
-  // Returns a list of the executed skill id_versions in order of execution.
-  // id_version is defined by: intrinsic_proto.catalog.SkillMeta.id_version
-  std::vector<std::string> GetExecutedSkillIdVersions() const;
-
-  // Returns a list of the executed skill requests in order of execution.
-  std::vector<intrinsic_proto::skills::ExecuteRequest> GetExecuteRequests()
-      const;
-
  private:
+  absl::StatusOr<std::shared_ptr<internal::SkillOperation>> MakeOperation(
+      absl::string_view name, absl::string_view skill_name,
+      grpc::ServerContext* context);
+
   SkillRepository& skill_repository_;
   std::shared_ptr<ObjectWorldService::StubInterface> object_world_service_;
   std::shared_ptr<MotionPlannerService::StubInterface> motion_planner_service_;
-  SkillRegistryClientInterface& skill_registry_client_;
+  RequestWatcher* request_watcher_;
+
   absl::Mutex message_mutex_;
   google::protobuf::MessageFactory* message_factory_
       ABSL_GUARDED_BY(message_mutex_);
   absl::flat_hash_map<std::string, const google::protobuf::Message* const>
       message_prototype_by_skill_name_ ABSL_GUARDED_BY(message_mutex_);
-  internal::SkillExecutionOperations operations_;
+  internal::SkillOperations operations_;
 };
 
 // This class implements the SkillInformation service. The skill registry can\

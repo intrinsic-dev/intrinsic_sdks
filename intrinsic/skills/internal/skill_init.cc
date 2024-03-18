@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/skills/internal/skill_init.h"
 
@@ -100,11 +98,9 @@ absl::Status SkillInit(
       CreateSkillRegistryClient(skill_registry_service_address));
 
   SkillProjectorServiceImpl project_service(
-      skill_repository, object_world_service, motion_planner_service,
-      *skill_registry_client);
+      skill_repository, object_world_service, motion_planner_service);
   SkillExecutorServiceImpl execute_service(
-      skill_repository, object_world_service, motion_planner_service,
-      *skill_registry_client);
+      skill_repository, object_world_service, motion_planner_service);
 
   std::string server_address = absl::StrCat("0.0.0.0:", skill_service_port);
 
@@ -197,8 +193,7 @@ GetSkillServiceConfig(absl::string_view skill_service_config_filename) {
         service_config,
         GetBinaryProto<intrinsic_proto::skills::SkillServiceConfig>(
             skill_service_config_filename));
-    LOG(INFO) << "\nUsing skill configuration proto:\n"
-              << service_config.DebugString();
+    LOG(INFO) << "\nUsing skill configuration proto:\n" << service_config;
   }
   return service_config;
 }

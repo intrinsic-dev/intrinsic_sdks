@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
@@ -192,7 +190,6 @@ py_test(
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [
-        "//intrinsic/icon/proto:acontis_ecat_device_py_pb2",
         "//intrinsic/icon/proto:cart_space_py_pb2",
         "//intrinsic/icon/proto:ik_options_py_pb2",
         "//intrinsic/icon/proto:joint_space_py_pb2",
@@ -232,10 +229,8 @@ py_package(
         "intrinsic",
     ],
     deps = [
-        ":icon",
         ":create_action_utils",
-        # Not used in icon client code, but in Jupyter to interact with structured data.
-        "//intrinsic/icon/proto:acontis_ecat_device_py_pb2",
+        ":icon",
     ],
 )
 

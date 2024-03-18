@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Defines ID types used in the object world.
 
@@ -15,7 +13,6 @@ Typing.NewType is not used, because it generates unreadable types in the
 signature in Jupyter environments. The class definition shows a better signature
 and only results in small execution overhead.
 """
-
 
 class ObjectWorldResourceId(str):
   """A unique id for a resource in the object-based world view.

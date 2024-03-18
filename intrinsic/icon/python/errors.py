@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """A common location for ICON exceptions.
 
@@ -14,7 +12,6 @@ base Error is provided for users to easily handle all ICON related exceptions.
   except errors.Session.ActionError:
     # Handle specific error.
 """
-
 
 class Error(Exception):
   pass

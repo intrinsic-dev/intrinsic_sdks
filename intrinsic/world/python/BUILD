@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
@@ -17,6 +15,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_world_ids",
+        "//intrinsic/icon/proto:cart_space_py_pb2",
         "//intrinsic/kinematics/types:joint_limits_py_pb2",
         "//intrinsic/math/python:data_types",
         "//intrinsic/math/python:proto_conversion",
@@ -35,6 +34,7 @@ py_test(
     deps = [
         ":object_world_ids",
         ":object_world_resources",
+        "//intrinsic/icon/proto:cart_space_py_pb2",
         "//intrinsic/kinematics/types:joint_limits_py_pb2",
         "//intrinsic/world/proto:object_world_refs_py_pb2",
         "//intrinsic/world/proto:object_world_service_py_pb2",

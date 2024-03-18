@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -28,4 +26,8 @@ message SensorConfig {
   // A list of camera settings applied to this sensor after the global settings
   // have been applied. TODO: Shall we rename this to SensorSetting?
   repeated CameraSetting settings = 5;
+}
+
+message SensorConfigs {
+  repeated SensorConfig sensor_configs = 1;
 }

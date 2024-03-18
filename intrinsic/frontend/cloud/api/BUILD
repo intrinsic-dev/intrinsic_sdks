@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("//bazel:go_macros.bzl", "go_grpc_library", "go_proto_library")
@@ -84,4 +82,21 @@ go_grpc_library(
         ":clusterdiscovery_grpc_go_proto",
         ":solutiondiscovery_api_go_proto",
     ],
+)
+
+proto_library(
+    name = "clusterdeletion_api_proto",
+    srcs = ["clusterdeletion_api.proto"],
+    deps = ["@com_google_protobuf//:empty_proto"],
+)
+
+go_proto_library(
+    name = "clusterdeletion_api_go_proto",
+    deps = [":clusterdeletion_api_proto"],
+)
+
+go_grpc_library(
+    name = "clusterdeletion_grpc_go_proto",
+    srcs = [":clusterdeletion_api_proto"],
+    deps = [":clusterdeletion_api_go_proto"],
 )
