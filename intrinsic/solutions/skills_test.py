@@ -32,7 +32,6 @@ from intrinsic.solutions import blackboard_value
 from intrinsic.solutions import providers
 from intrinsic.solutions import skill_utils
 from intrinsic.solutions import skills as skills_mod
-from intrinsic.solutions.testing import compare
 from intrinsic.solutions.testing import test_skill_params_pb2
 
 FLAGS = flags.FLAGS
@@ -370,7 +369,7 @@ class SkillsTest(parameterized.TestCase):
     expected_proto.equipment[resource_slot].handle = resource_name
     expected_proto.parameters.Pack(parameters)
 
-    compare.assertProto2Equal(self, expected_proto, skill.proto)
+    self.assertEqual(expected_proto, skill.proto)
 
     skill_str = (
         'skills.my_skill('
@@ -423,7 +422,7 @@ class SkillsTest(parameterized.TestCase):
     expected_proto.equipment[resource_slot].handle = resource_name
     expected_proto.parameters.Pack(parameter_defaults)
 
-    compare.assertProto2Equal(self, expected_proto, skill.proto)
+    self.assertEqual(expected_proto, skill.proto)
 
     skill_str = (
         'skills.my_skill('
@@ -485,7 +484,7 @@ class SkillsTest(parameterized.TestCase):
     expected_proto.equipment[resource_slot].handle = resource_name
     expected_proto.parameters.Pack(parameters)
 
-    compare.assertProto2Equal(self, expected_proto, skill.proto)
+    self.assertEqual(expected_proto, skill.proto)
 
     skill_str = (
         'skills.my_skill('
@@ -540,7 +539,7 @@ class SkillsTest(parameterized.TestCase):
         )
     )
 
-    compare.assertProto2Equal(self, expected_proto, skill.proto)
+    self.assertEqual(expected_proto, skill.proto)
 
   @parameterized.parameters(
       {
@@ -702,7 +701,7 @@ class SkillsTest(parameterized.TestCase):
         )
     )
     expected_proto.parameters.Pack(expected_parameters)
-    compare.assertProto2Equal(self, expected_proto, skill.proto)
+    self.assertEqual(expected_proto, skill.proto)
 
   def test_gen_skill_with_map_parameter(self):
     skill_registry, skill_registry_stub = _skill_registry_with_mock_stub()
@@ -738,7 +737,7 @@ class SkillsTest(parameterized.TestCase):
     actual_parameters = test_skill_params_pb2.TestMessage()
     skill.proto.parameters.Unpack(actual_parameters)
 
-    compare.assertProto2Equal(self, expected_parameters, actual_parameters)
+    self.assertEqual(expected_parameters, actual_parameters)
 
   def test_gen_skill_with_message_map_parameter_from_alias(self):
     skill_registry, skill_registry_stub = _skill_registry_with_mock_stub()
@@ -770,7 +769,7 @@ class SkillsTest(parameterized.TestCase):
     actual_parameters = test_skill_params_pb2.TestMessage()
     skill.proto.parameters.Unpack(actual_parameters)
 
-    compare.assertProto2Equal(self, expected_parameters, actual_parameters)
+    self.assertEqual(expected_parameters, actual_parameters)
 
   def test_gen_skill_with_message_map_parameter_from_actual_type(self):
     skill_registry, skill_registry_stub = _skill_registry_with_mock_stub()
@@ -802,7 +801,7 @@ class SkillsTest(parameterized.TestCase):
     actual_parameters = test_skill_params_pb2.TestMessage()
     skill.proto.parameters.Unpack(actual_parameters)
 
-    compare.assertProto2Equal(self, expected_parameters, actual_parameters)
+    self.assertEqual(expected_parameters, actual_parameters)
 
   def test_gen_skill_fails_for_set_instead_of_dict(self):
     skill_registry, skill_registry_stub = _skill_registry_with_mock_stub()
@@ -1496,7 +1495,7 @@ Returns:
         """,
         behavior_call_pb2.BehaviorCall(),
     )
-    compare.assertProto2Equal(self, skill.proto, expected_proto)
+    self.assertEqual(skill.proto, expected_proto)
 
   def test_nested_message_classes(self):
     skill_info = _create_test_skill_info(
