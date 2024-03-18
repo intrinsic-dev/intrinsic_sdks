@@ -2,57 +2,60 @@
 
 """Build rule for creating a Skill Manifest."""
 
-load("@bazel_skylib//lib:new_sets.bzl", "sets")
+load("//intrinsic/util/proto/build_defs:descriptor_set.bzl", "ProtoSourceCodeInfo", "gen_source_code_info_descriptor_set")
 
 SkillManifestInfo = provider(
     "Info about a binary skill manifest",
     fields = {
         "manifest_binary_file": "The binary manifest File.",
+        "file_descriptor_set": "The file descriptor set with source information",
     },
 )
 
 def _skill_manifest_impl(ctx):
     outputfile = ctx.actions.declare_file(ctx.label.name + ".pbbin")
+    file_descriptor_set_out = ctx.actions.declare_file(ctx.label.name + "_filedescriptor.pbbin")
     pbtxt = ctx.file.src
-    executable = ctx.executable._protoc
 
-    descriptor_set_set = sets.make()
-    deps = ctx.attr.deps + [ctx.attr._skill_manifest_proto]
-    for dep in deps:
-        if ProtoInfo in dep:
-            for descriptor_set in dep[ProtoInfo].transitive_descriptor_sets.to_list():
-                sets.insert(descriptor_set_set, descriptor_set)
-    descriptor_sets = sets.to_list(descriptor_set_set)
+    transitive_descriptor_sets = depset(
+        transitive = [
+            dep[ProtoSourceCodeInfo].transitive_descriptor_sets
+            for dep in ctx.attr.deps
+        ],
+    )
 
-    descriptor_set_in = ("--descriptor_set_in=%s" %
-                         ":".join([file.path for file in descriptor_sets]))
+    args = ctx.actions.args().add(
+        "--manifest",
+        pbtxt,
+    ).add(
+        "--output",
+        outputfile,
+    ).add(
+        "--file_descriptor_set_out",
+        file_descriptor_set_out,
+    ).add_joined(
+        "--file_descriptor_sets",
+        transitive_descriptor_sets,
+        join_with = ",",
+    )
 
-    protoc_args = [
-        "--encode=intrinsic_proto.skills.Manifest",
-        "--deterministic_output",
-        descriptor_set_in,
-    ]
-    redirect = [
-        "< %s" % pbtxt.path,
-        "> %s" % outputfile.path,
-    ]
-
-    ctx.actions.run_shell(
-        outputs = [outputfile],
-        inputs = [pbtxt] + descriptor_sets,
-        tools = [executable],
-        command = " ".join([executable.path] + protoc_args + redirect),
-        mnemonic = "ProtoDataCompiler",
-        use_default_shell_env = False,
+    outputs = [outputfile, file_descriptor_set_out]
+    ctx.actions.run(
+        outputs = outputs,
+        inputs = depset([pbtxt], transitive = [transitive_descriptor_sets]),
+        executable = ctx.executable._skillmanifestgen,
+        arguments = [args],
+        mnemonic = "SkillManifest",
     )
 
     return [
         DefaultInfo(
-            files = depset([outputfile]),
-            runfiles = ctx.runfiles([outputfile]),
+            files = depset(outputs),
+            runfiles = ctx.runfiles(outputs),
         ),
         SkillManifestInfo(
             manifest_binary_file = outputfile,
+            file_descriptor_set = file_descriptor_set_out,
         ),
     ]
 
@@ -82,15 +85,12 @@ skill_manifest = rule(
                   "This is normally the proto message declaring the skill's return type and parameter " +
                   "type messages.",
             providers = [ProtoInfo],
+            aspects = [gen_source_code_info_descriptor_set],
         ),
-        "_protoc": attr.label(
-            default = Label("@com_google_protobuf//:protoc"),
+        "_skillmanifestgen": attr.label(
+            default = Label("//intrinsic/skills/build_defs:skillmanifestgen"),
             executable = True,
             cfg = "exec",
-        ),
-        "_skill_manifest_proto": attr.label(
-            default = Label("//intrinsic/skills/proto:skill_manifest_proto"),
-            doc = "the skill manifest proto schema",
         ),
     },
 )

@@ -15,9 +15,10 @@ executive.run() method.
 """
 
 import abc
+import collections
 import enum
 import sys
-from typing import Any as AnyType, Callable, Iterable, List, Optional, Sequence as SequenceType, Tuple, Union
+from typing import Any as AnyType, Callable, Iterable, List, Mapping, Optional, Sequence as SequenceType, Tuple, Union
 import uuid
 
 from google.protobuf import any_pb2
@@ -557,7 +558,20 @@ class Node(abc.ABC):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    return f'{type(self).__name__}()'
+    return f'{type(self).__name__}({self._name_repr()})'
+
+  def _name_repr(self) -> str:
+    """Returns a snippet for the name attribute to be used in __repr__.
+
+    The snippet is a keyword argument of the form 'name="example_name", '. It
+    will be empty, if name is not set. It can be inserted in the output of a
+    constructor call in __repr__ without any logic (e.g., adding commas or not,
+    handling the name not being set).
+    """
+    name_snippet = ''
+    if self.name is not None:
+      name_snippet = f'name="{self.name}", '
+    return name_snippet
 
   @classmethod
   def create_from_proto(
@@ -1206,10 +1220,7 @@ class Task(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
-    return f'{type(self).__name__}({name_snippet}action=behavior_call.Action(skill_id="{self._behavior_call_proto.skill_id}"))'
+    return f'{type(self).__name__}({self._name_repr()}action=behavior_call.Action(skill_id="{self._behavior_call_proto.skill_id}"))'
 
   @property
   def name(self) -> Optional[str]:
@@ -1373,9 +1384,9 @@ class SubTree(Node):
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
     if not self.behavior_tree:
-      return f'{type(self).__name__}()'
+      return f'{type(self).__name__}({self._name_repr()})'
     else:
-      return f'{type(self).__name__}({str(self.behavior_tree)})'
+      return f'{type(self).__name__}({self._name_repr()}behavior_tree={repr(self.behavior_tree)})'
 
   @property
   def name(self) -> Optional[str]:
@@ -1511,7 +1522,11 @@ class Fail(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    return f'{type(self).__name__}({self.failure_message})'
+    rep = f'{type(self).__name__}({self._name_repr()}'
+    if self.failure_message:
+      rep += f'failure_message="{self.failure_message}"'
+    rep += ')'
+    return rep
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1607,10 +1622,7 @@ class NodeWithChildren(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
-    representation = f'{type(self).__name__}({name_snippet}children=['
+    representation = f'{type(self).__name__}({self._name_repr()}children=['
     representation += ', '.join(map(str, self.children))
     representation += '])'
     return representation
@@ -1982,12 +1994,9 @@ class Retry(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
     recovery_str = f', recovery={str(self.recovery)}'
     return (
-        f'{type(self).__name__}({name_snippet}max_tries={self.max_tries},'
+        f'{type(self).__name__}({self._name_repr()}max_tries={self.max_tries},'
         f' child={str(self.child)}{recovery_str})'
     )
 
@@ -2520,18 +2529,16 @@ class Loop(Node):
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
     representation = f'{type(self).__name__}'
-    if self.while_condition is not None:
-      representation += f' {str(self.while_condition)}'
     if self._for_each_generator_cel_expression is not None:
       representation += f' over {self._for_each_generator_cel_expression}'
     if self._for_each_protos is not None:
       representation += f' over {len(self._for_each_protos)} protos'
-    representation += ' ('
-    if self.name is not None:
-      representation += f'name="{self.name}", '
+    representation += f'({self._name_repr()}'
+    if self.while_condition is not None:
+      representation += f'while_condition={repr(self.while_condition)}, '
     if self.max_times != 0:
       representation += f'max_times={self.max_times}, '
-    representation += f'{str(self.do_child)})'
+    representation += f'do_child={repr(self.do_child)})'
     return representation
 
   @property
@@ -2796,13 +2803,14 @@ class Branch(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    representation = f'{type(self).__name__}'
+    representation = f'{type(self).__name__}({self._name_repr()}'
     if self.if_condition is not None:
-      representation += f' {str(self.if_condition)}'
+      representation += f'if_condition={repr(self.if_condition)}, '
     if self.then_child is not None:
-      representation += f' then ({str(self.then_child)})'
+      representation += f'then_child={repr(self.then_child)}, '
     if self.else_child is not None:
-      representation += f' else ({str(self.else_child)})'
+      representation += f'else_child={repr(self.else_child)}'
+    representation += ')'
     return representation
 
   @property
@@ -3012,7 +3020,10 @@ class Data(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    return f'{type(self).__name__}'
+    return (
+        f'{type(self).__name__}({self._name_repr()},'
+        f' blackboard_key="{self.blackboard_key}")'
+    )
 
   @property
   def name(self) -> Optional[str]:
@@ -3396,6 +3407,33 @@ class Data(Node):
     return identifier
 
 
+class IdRecorder:
+  """A visitor callable object that records tree ids and node ids."""
+
+  def __init__(self):
+    self.tree_to_node_id_to_nodes: Mapping[
+        BehaviorTree, Mapping[int, list[Node]]
+    ] = collections.defaultdict(lambda: collections.defaultdict(list))
+    self.tree_id_to_trees: Mapping[str, list[BehaviorTree]] = (
+        collections.defaultdict(list)
+    )
+
+  def __call__(
+      self,
+      containing_tree: 'BehaviorTree',
+      tree_object: Union['BehaviorTree', Node, Condition],
+  ):
+    if isinstance(tree_object, Node) and tree_object.node_id is not None:
+      self.tree_to_node_id_to_nodes[containing_tree][
+          tree_object.node_id
+      ].append(tree_object)
+    if (
+        isinstance(tree_object, BehaviorTree)
+        and tree_object.tree_id is not None
+    ):
+      self.tree_id_to_trees[tree_object.tree_id].append(tree_object)
+
+
 class BehaviorTree:
   # pyformat: disable
   """Python wrapper around behavior_tree_pb2.BehaviorTree proto.
@@ -3460,9 +3498,14 @@ class BehaviorTree:
     Returns:
       A behavior tree formatted as string using Python syntax.
     """
+    return f'BehaviorTree({self._name_repr()}root={repr(self.root)})'
+
+  def _name_repr(self) -> str:
+    """Returns a snippet for the name attribute to be used in __repr__."""
+    name_snippet = ''
     if self.name:
-      return f'BehaviorTree(name="{self.name}", root={str(self.root)})'
-    return f'BehaviorTree(root={str(self.root)})'
+      name_snippet = f'name="{self.name}", '
+    return name_snippet
 
   def set_root(self, root: Union['Node', actions.ActionBase]) -> 'Node':
     """Sets the root member to the given Node instance."""
@@ -3546,6 +3589,65 @@ class BehaviorTree:
     callback(self, self)
     if self.root is not None:
       self.root.visit(self, callback)
+
+  def validate_id_uniqueness(self) -> None:
+    """Validates if all ids in the tree are unique.
+
+    The current BehaviorTree object is checked recursively and any non-unique
+    ids are highlighted. The function only works locally, i.e., only this tree
+    and its SubTrees, Conditions, etc. are verified, but not the uniqueness of
+    any referred PBTs or uniqueness across any other tree ids currently loaded
+    in the executive.
+
+    Raises:
+      solution_errors.InvalidArgumentError if uniqueness is violated. The error
+      message gives further information on which ids are non-consistent.
+    """
+
+    def tree_object_string(tree_object: Union['BehaviorTree', Node]):
+      """Creates a string representation that helps identifying the object."""
+
+      tree_object_str = (
+          # pylint:disable-next=protected-access
+          f'{tree_object.__class__.__name__}({tree_object._name_repr()})'
+      )
+      if (
+          isinstance(tree_object, BehaviorTree)
+          and tree_object.tree_id is not None
+      ):
+        tree_object_str += f' [tree_id="{tree_object.tree_id}"]'
+      if isinstance(tree_object, Node) and tree_object.node_id is not None:
+        tree_object_str += f' [node_id="{tree_object.node_id}"]'
+      else:
+        tree_object_str += ' [<unknown-id>]'
+      return tree_object_str
+
+    id_recorder = IdRecorder()
+    self.visit(id_recorder)
+
+    violations = []
+    for tree, node_id_to_nodes in id_recorder.tree_to_node_id_to_nodes.items():
+      for node_id, nodes in node_id_to_nodes.items():
+        if len(nodes) > 1:
+          violation_explanation = (
+              f'  * {tree_object_string(tree)} contains'
+              f' {len(nodes)} nodes with id {node_id}: '
+          )
+          violation_explanation += ', '.join(map(tree_object_string, nodes))
+          violations.append(violation_explanation)
+    for tree_id, trees in id_recorder.tree_id_to_trees.items():
+      if len(trees) > 1:
+        violation_explanation = (
+            f'  * The tree contains {len(trees)} trees with id "{tree_id}": '
+        )
+        violation_explanation += ', '.join(map(tree_object_string, trees))
+        violations.append(violation_explanation)
+    if violations:
+      violation_msg = (
+          'The BehaviorTree violates uniqueness of tree ids or node ids'
+          ' (per tree):\n'
+      ) + '\n'.join(violations)
+      raise solutions_errors.InvalidArgumentError(violation_msg)
 
   def dot_graph(self) -> graphviz.Digraph:
     """Converts the given behavior tree into a graphviz dot representation.

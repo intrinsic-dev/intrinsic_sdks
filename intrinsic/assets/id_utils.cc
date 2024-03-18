@@ -15,7 +15,8 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "intrinsic/assets/proto/id.pb.h"
-#include "intrinsic/icon/release/status_helpers.h"
+#include "intrinsic/util/status/annotate.h"
+#include "intrinsic/util/status/status_macros.h"
 #include "re2/re2.h"
 #include "re2/stringpiece.h"
 
@@ -66,7 +67,8 @@ absl::StatusOr<std::string> GetNamedMatch(absl::string_view str, const RE2 *re,
 }  // namespace
 
 IdVersionParts::IdVersionParts(const std::vector<re2::StringPiece> *matches) {
-  const auto &groups = kIdVersionExpr->NamedCapturingGroups();
+  const std::map<std::string, int> &groups =
+      kIdVersionExpr->NamedCapturingGroups();
 
   id_ = std::string(matches->at(groups.at("id")));
   id_version_ = std::string(matches->at(groups.at("id_version")));
@@ -136,7 +138,7 @@ absl::StatusOr<std::string> IdFromProto(intrinsic_proto::config::Id id) {
 absl::StatusOr<std::string> IdVersionFrom(absl::string_view package,
                                           absl::string_view name,
                                           absl::string_view version) {
-  INTRINSIC_ASSIGN_OR_RETURN(std::string id, IdFrom(package, name));
+  INTR_ASSIGN_OR_RETURN(std::string id, IdFrom(package, name));
 
   absl::Status status = ValidateVersion(version);
   if (!status.ok()) {
@@ -154,8 +156,7 @@ absl::StatusOr<intrinsic_proto::config::IdVersion> IdVersionProtoFrom(
     absl::string_view version) {
   intrinsic_proto::config::IdVersion id_version;
 
-  INTRINSIC_ASSIGN_OR_RETURN(*id_version.mutable_id(),
-                             IdProtoFrom(package, name));
+  INTR_ASSIGN_OR_RETURN(*id_version.mutable_id(), IdProtoFrom(package, name));
 
   absl::Status status = ValidateVersion(version);
   if (!status.ok()) {
@@ -204,7 +205,7 @@ absl::StatusOr<std::string> RemoveVersionFrom(absl::string_view id) {
     return *id_or_status;
   }
 
-  INTRINSIC_RETURN_IF_ERROR(ValidateId(id));
+  INTR_RETURN_IF_ERROR(ValidateId(id));
   return std::string(id);
 }
 

@@ -5,8 +5,8 @@
 # not needed to be included directly when authoring a Skill.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
-load("@io_bazel_rules_docker//python3:image.bzl", "py3_image")
-load("@rules_python//python:defs.bzl", "py_library")
+load("//bazel:python_oci_image.bzl", "python_oci_image")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@rules_python//python:packaging.bzl", "py_package", "py_wheel")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("//intrinsic/util/proto/build_defs:descriptor_set.bzl", "proto_source_code_info_transitive_descriptor_set")
@@ -28,9 +28,9 @@ cc_library(
     srcs = ["default_parameters.cc"],
     hdrs = ["default_parameters.h"],
     deps = [
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/proto:merge",
+        "//intrinsic/util/status:status_macros",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -113,7 +113,6 @@ cc_library(
     srcs = ["get_footprint_context_impl.cc"],
     hdrs = ["get_footprint_context_impl.h"],
     deps = [
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/logging/proto:context_cc_proto",
         "//intrinsic/motion_planning:motion_planner_client",
         "//intrinsic/resources/proto:resource_handle_cc_proto",
@@ -121,6 +120,7 @@ cc_library(
         "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:footprint_cc_proto",
+        "//intrinsic/util/status:status_macros",
         "//intrinsic/world/objects:frame",
         "//intrinsic/world/objects:kinematic_object",
         "//intrinsic/world/objects:object_world_client",
@@ -197,7 +197,6 @@ cc_library(
     srcs = ["preview_context_impl.cc"],
     hdrs = ["preview_context_impl.h"],
     deps = [
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/logging/proto:context_cc_proto",
         "//intrinsic/motion_planning:motion_planner_client",
         "//intrinsic/resources/proto:resource_handle_cc_proto",
@@ -209,6 +208,7 @@ cc_library(
         "//intrinsic/skills/proto:prediction_cc_proto",
         "//intrinsic/skills/proto:skill_service_cc_proto",
         "//intrinsic/util:proto_time",
+        "//intrinsic/util/status:status_macros",
         "//intrinsic/world/objects:frame",
         "//intrinsic/world/objects:kinematic_object",
         "//intrinsic/world/objects:object_world_client",
@@ -246,17 +246,12 @@ py_library(
     name = "module_skill_service",
     srcs = ["module_skill_service.py"],
     srcs_version = "PY3",
-    visibility = [
-        "//visibility:public",
-    ],
     deps = [
         ":module_utils",
         ":runtime_data_py",
         ":single_skill_factory_py",
         ":skill_init_py",
-        "//intrinsic/skills/proto:skill_service_config_py_pb2",
         "//intrinsic/skills/python:skill_interface",
-        "//intrinsic/skills/testing:map_skill_repository_py",
         "@com_google_absl_py//absl:app",
         "@com_google_absl_py//absl/flags",
     ],
@@ -301,10 +296,7 @@ py_library(
 py_library(
     name = "proto_utils",
     srcs = ["proto_utils.py"],
-    data = [
-        "//intrinsic/util/proto:source_code_info_view_py.so",
-        "@pybind11_abseil//pybind11_abseil:status.so",
-    ],
+    data = ["//intrinsic/util/proto:source_code_info_view_py.so"],
     srcs_version = "PY3",
     deps = [
         "//intrinsic/assets:id_utils_py",
@@ -313,7 +305,6 @@ py_library(
         "//intrinsic/skills/proto:skills_py_pb2",
         "//intrinsic/skills/python:skill_interface",
         "//intrinsic/util/proto:descriptors_py",
-        "@com_google_absl_py//absl/logging",
         "@com_google_protobuf//:protobuf_python",
     ],
 )
@@ -326,25 +317,6 @@ cc_library(
         "//intrinsic/skills/cc:skill_interface",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_library(
-    name = "registerer_skill_repository",
-    srcs = ["registerer_skill_repository.cc"],
-    hdrs = ["registerer_skill_repository.h"],
-    deps = [
-        ":runtime_data",
-        ":skill_repository",
-        "//intrinsic/icon/release:status_helpers",
-        "//intrinsic/skills/cc:skill_interface",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:str_format",
-        "@com_google_absl//absl/synchronization",
     ],
 )
 
@@ -364,12 +336,12 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//intrinsic/assets:id_utils",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:skill_service_config_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util:proto_time",
+        "//intrinsic/util/status:status_macros",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -439,13 +411,13 @@ cc_library(
         ":skill_repository",
         ":skill_service_impl",
         "//intrinsic/icon/release:file_helpers",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/logging:data_logger_client",
         "//intrinsic/motion_planning/proto:motion_planner_service_cc_grpc_proto",
         "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:skill_service_config_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/grpc",
+        "//intrinsic/util/status:status_macros",
         "//intrinsic/world/proto:object_world_service_cc_grpc_proto",
         "@com_github_grpc_grpc//:grpc++",
         "@com_github_grpc_grpc//:grpc_security_base",
@@ -493,7 +465,6 @@ cc_library(
         ":skill_registry_client_interface",
         ":skill_repository",
         "//intrinsic/assets:id_utils",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/motion_planning:motion_planner_client",
         "//intrinsic/motion_planning/proto:motion_planner_service_cc_grpc_proto",
         "//intrinsic/skills/cc:equipment_pack",
@@ -505,6 +476,8 @@ cc_library(
         "//intrinsic/skills/proto:skill_service_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/proto:merge",
+        "//intrinsic/util/status:status_macros",
+        "//intrinsic/util/status:status_macros_grpc",
         "//intrinsic/util/thread",
         "//intrinsic/world/objects:object_world_client",
         "//intrinsic/world/proto:object_world_service_cc_grpc_proto",
@@ -532,7 +505,6 @@ cc_library(
     hdrs = ["skill_registry_client.h"],
     deps = [
         ":skill_registry_client_interface",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/skills/cc:client_common",
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/internal/proto:behavior_tree_registry_internal_cc_grpc_proto",
@@ -545,6 +517,8 @@ cc_library(
         "//intrinsic/skills/proto:skill_registry_config_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/grpc",
+        "//intrinsic/util/status:annotate",
+        "//intrinsic/util/status:status_macros",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
@@ -577,12 +551,12 @@ cc_library(
     hdrs = ["skill_proto_utils.h"],
     deps = [
         "//intrinsic/assets/proto:id_cc_proto",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:skill_manifest_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/proto:descriptors",
         "//intrinsic/util/proto:source_code_info_view",
+        "//intrinsic/util/status:status_macros",
         "@com_github_google_re2//:re2",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log",
@@ -603,11 +577,11 @@ cc_binary(
         ":skill_proto_utils",
         "//intrinsic/assets/proto:id_cc_proto",
         "//intrinsic/icon/release:file_helpers",
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/icon/release/portable:init_xfa_absl",
         "//intrinsic/skills/proto:skill_manifest_cc_proto",
         "//intrinsic/skills/proto:skill_service_config_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
+        "//intrinsic/util/status:status_macros",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
@@ -661,15 +635,26 @@ proto_source_code_info_transitive_descriptor_set(
     ],
 )
 
-# The default base image used by the skill image builder for python skills.
-py3_image(
-    name = "built_py_skill_base",
-    srcs = ["//intrinsic/skills/internal:module_skill_service_main.py"],
+py_binary(
+    name = "module_skill_service_main",
+    srcs = ["module_skill_service_main.py"],
     data = [
         ":built_skill_proto_descriptors",
     ],
-    main = "//intrinsic/skills/internal:module_skill_service_main.py",
+    srcs_version = "PY3",
     deps = [
-        "//intrinsic/skills/internal:module_skill_service",
+        ":module_skill_service",
     ],
+)
+
+# The default base image used by the skill image builder for python skills.
+python_oci_image(
+    name = "built_py_skill_base",
+    base = "@distroless_python3",
+    binary = ":module_skill_service_main",
+    entrypoint = [
+        "python3",
+        "/google3/intrinsic/skills/internal/module_skill_service_main",
+    ],
+    workdir = "/",
 )
