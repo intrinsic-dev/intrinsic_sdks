@@ -11,8 +11,8 @@ load("//bazel:go_deps.bzl", "go_dependencies")
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
 # CC toolchain
-load("@com_grail_bazel_toolchain//toolchain:deps.bzl", "bazel_toolchain_dependencies")
-load("@com_grail_bazel_toolchain//toolchain:rules.bzl", "llvm_toolchain")
+load("@toolchains_llvm//toolchain:deps.bzl", "bazel_toolchain_dependencies")
+load("@toolchains_llvm//toolchain:rules.bzl", "llvm_toolchain")
 
 # Python toolchain
 load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
@@ -22,9 +22,6 @@ load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies",
 
 # Googleapis
 load("//bazel:extension_for_com_google_googleapis.bzl", "extension_for_com_google_googleapis")
-
-# Google Cloud Platform C++ Client Libraries
-load("@google_cloud_cpp//bazel:google_cloud_cpp_deps.bzl", "google_cloud_cpp_deps")
 
 # gRPC
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
@@ -107,9 +104,6 @@ def intrinsic_sdks_deps_1(register_go_toolchain = True):
 
     # Bazel skylib
     bazel_skylib_workspace()
-
-    # Google Cloud Platform C++ Client Libraries
-    google_cloud_cpp_deps()
 
     # Rules Foreign CC
     rules_foreign_cc_dependencies()
