@@ -301,7 +301,10 @@ py_library(
     deps = [
         "//intrinsic/assets:id_utils_py",
         "//intrinsic/skills/proto:skill_manifest_py_pb2",
+        "//intrinsic/skills/proto:skill_registry_config_py_pb2",
         "//intrinsic/skills/proto:skills_py_pb2",
+        "//intrinsic/skills/python:skill_interface",
+        "//intrinsic/util/proto:descriptors_py",
         "@com_google_protobuf//:protobuf_python",
     ],
 )
@@ -332,6 +335,8 @@ cc_library(
     hdrs = ["runtime_data.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//intrinsic/assets:id_utils",
+        "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:skill_service_config_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
@@ -353,9 +358,11 @@ py_library(
     srcs = ["runtime_data.py"],
     visibility = ["//visibility:public"],
     deps = [
+        "//intrinsic/assets:id_utils_py",
         "//intrinsic/skills/proto:equipment_py_pb2",
         "//intrinsic/skills/proto:skill_service_config_py_pb2",
         "//intrinsic/skills/proto:skills_py_pb2",
+        "//intrinsic/skills/python:skill_interface",
         "@com_google_protobuf//:protobuf_python",
     ],
 )
@@ -431,6 +438,7 @@ py_library(
     srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
+        ":proto_utils",
         ":skill_repository_py",
         ":skill_service_impl_py",
         "//intrinsic/motion_planning/proto:motion_planner_service_py_pb2_grpc",
@@ -439,6 +447,7 @@ py_library(
         "//intrinsic/world/proto:object_world_service_py_pb2_grpc",
         requirement("grpcio"),
         "@com_google_absl_py//absl/logging",
+        "@com_google_protobuf//:protobuf_python",
     ],
 )
 
@@ -645,12 +654,7 @@ python_oci_image(
     binary = ":module_skill_service_main",
     entrypoint = [
         "python3",
-        "/ai_intrinsic_sdks~override/intrinsic/skills/internal/module_skill_service_main",
+        "/google3/intrinsic/skills/internal/module_skill_service_main",
     ],
-    # BUG fully-qualified imports on Bzlmod: https://github.com/bazelbuild/rules_python/issues/1679
-    symlinks = {
-        "/ai_intrinsic_sdks~override/intrinsic/skills/internal/module_skill_service_main": "/intrinsic/skills/internal/module_skill_service_main",
-        "/ai_intrinsic_sdks~override/intrinsic/skills/internal/module_skill_service_main.py": "/intrinsic/skills/internal/module_skill_service_main.py",
-    },
     workdir = "/",
 )

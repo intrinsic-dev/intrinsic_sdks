@@ -66,7 +66,9 @@ int main(int argc, char** argv) {
 
   // clang-format off
   absl::StatusOr<SkillRuntimeData> runtime_data = GetRuntimeDataFrom(
-      *service_config);
+      *service_config,
+      {{.ParameterDescriptorPtr}},
+      {{.ReturnDescriptorPtr}});
   // clang-format on
   QCHECK_OK(runtime_data.status()) << "Failed to create SkillRuntimeData";
 

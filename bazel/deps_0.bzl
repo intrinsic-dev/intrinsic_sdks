@@ -5,7 +5,6 @@
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_jar")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
-load("//bazel:non_module_deps.bzl", "non_module_deps")
 
 def intrinsic_sdks_deps_0():
     """Loads workspace dependencies needed for the Intrinsic SDKs.
@@ -28,9 +27,6 @@ def intrinsic_sdks_deps_0():
     loads at the very top. Loads and macro calls that depend on a previous macro call in this file
     are located in intrinsic_sdks_deps_1.bzl/intrinsic_sdks_deps_1() and so on.
     """
-
-    # Include non-bzlmod dependencies
-    non_module_deps()
 
     # Go rules and toolchain
     maybe(
@@ -65,13 +61,32 @@ def intrinsic_sdks_deps_0():
         url = "https://github.com/grailbio/bazel-toolchain/archive/{tag}.tar.gz".format(tag = BAZEL_TOOLCHAIN_TAG),
     )
 
+    # Sysroot and libc
+    # How to upgrade:
+    # - Find image in https://storage.googleapis.com/chrome-linux-sysroot/ for amd64 for
+    #   a stable Linux (here: Debian stretch), of this pick a current build.
+    # - Verify the image contains expected /lib/x86_64-linux-gnu/libc* and defines correct
+    #   __GLIBC_MINOR__ in /usr/include/features.h
+    # - If system files are not found, add them in ../BUILD.sysroot
+    maybe(
+        http_archive,
+        name = "com_googleapis_storage_chrome_linux_amd64_sysroot",
+        build_file = Label("//intrinsic/production/external:BUILD.sysroot"),
+        sha256 = "66bed6fb2617a50227a824b1f9cfaf0a031ce33e6635edaa2148f71a5d50be48",
+        urls = [
+            # features.h defines GLIBC 2.24. Contains /lib/x86_64-linux-gnu/libc-2.24.so,
+            # last modified by Chrome 2018-02-22.
+            "https://storage.googleapis.com/chrome-linux-sysroot/toolchain/15b7efb900d75f7316c6e713e80f87b9904791b1/debian_stretch_amd64_sysroot.tar.xz",
+        ],
+    )
+
     # Python rules, toolchain and pip dependencies
     maybe(
         http_archive,
         name = "rules_python",
-        strip_prefix = "rules_python-0.27.1",
-        url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.27.1.zip",
-        sha256 = "19250cc0ab89f052131137a58c993d988d74637b52a5b137a4264d9917c13a3e",
+        strip_prefix = "rules_python-0.17.3",
+        url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.17.3.zip",
+        sha256 = "3046a47488b4e67317cdfa4c53e32b99ea68657ef53b82204aac46e22957ceac",
     )
 
     maybe(
@@ -109,6 +124,13 @@ def intrinsic_sdks_deps_0():
         strip_prefix = "rules_oci-1.5.1",
         url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.5.1/rules_oci-v1.5.1.tar.gz",
     )
+    maybe(
+        http_archive,
+        name = "io_bazel_rules_docker",
+        sha256 = "f6d71a193ff6df39900417b50e67a5cf0baad2e90f83c8aefe66902acce4c34d",
+        strip_prefix = "rules_docker-ca2f3086ead9f751975d77db0255ffe9ee07a781",
+        urls = ["https://github.com/bazelbuild/rules_docker/archive/ca2f3086ead9f751975d77db0255ffe9ee07a781.tar.gz"],
+    )
 
     # Overrides gRPC's dependency on re2. Solves a build error in opt mode
     # http://b/277071259
@@ -129,6 +151,16 @@ def intrinsic_sdks_deps_0():
         commit = RE2_COMMIT,
         remote = "https://github.com/google/re2.git",
         shallow_since = "1645717357 +0000",
+    )
+
+    maybe(
+        http_archive,
+        name = "com_google_googleapis",
+        patch_args = ["-p1"],
+        patches = [Label("//intrinsic/production/external/patches:0004-Simplify-longrunning_py_proto.patch")],
+        sha256 = "6c005ec1356d00821c00529b7d1283669633caf7e1e30d06909dda85a351b42f",
+        strip_prefix = "googleapis-f3d6f41ed50ae9271fbf9ce2355d1f1e8afb4d94",
+        urls = ["https://github.com/googleapis/googleapis/archive/f3d6f41ed50ae9271fbf9ce2355d1f1e8afb4d94.zip"],
     )
 
     # Protobuf
@@ -165,7 +197,6 @@ def intrinsic_sdks_deps_0():
             Label("//intrinsic/production/external/patches:0002-Add-warning-suppressions-to-cython_library.patch"),
             Label("//intrinsic/production/external/patches:0003-Remove-competing-local_config_python-definition.patch"),
             Label("//intrinsic/production/external/patches:0005-Remove-competing-go-deps.patch"),
-            Label("//intrinsic/production/external/patches:0007-Also-generate-pyi-files-grpc.patch"),
             Label("//intrinsic/production/external/patches:0011-Public-grpc_library-attr.patch"),
         ],
         sha256 = "194dcaae20b7bcd9fc4fc9a1e091215207842ddb9a1df01419c7c55d3077979b",  # v1.56.0
@@ -289,6 +320,15 @@ def intrinsic_sdks_deps_0():
         sha256 = "b011a730c8845bfc265f0f81ee4e5e9e1d354df390836d2a25880e123d021f89",
         strip_prefix = "pybind11-2.11.1",
         urls = ["https://github.com/pybind/pybind11/archive/v2.11.1.zip"],  #  Jul 17, 2023
+    )
+
+    # Flatbuffers
+    maybe(
+        git_repository,
+        name = "com_github_google_flatbuffers",
+        commit = "615616cb5549a34bdf288c04bc1b94bd7a65c396",  # v2.0.6
+        remote = "https://github.com/google/flatbuffers.git",
+        shallow_since = "1644943722 -0500",
     )
 
     # Bazel skylib

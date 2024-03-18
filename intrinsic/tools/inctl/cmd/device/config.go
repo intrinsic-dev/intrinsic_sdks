@@ -24,10 +24,6 @@ import (
 	"intrinsic/tools/inctl/util/printer"
 )
 
-const (
-	gatewayError = "Cluster is currently not connected to the cloud relay. Make sure it is turned on and connected to the internet.\nIf the device restarted in the last 10 minutes wait a couple of minutes, then try again.\n"
-)
-
 var (
 	errConfigGone = fmt.Errorf("config was rejected")
 )
@@ -76,11 +72,6 @@ var configGetCmd = &cobra.Command{
 		if err := client.GetJSON(cmd.Context(), clusterName, deviceID, "relay/v1alpha1/status", &status); err != nil {
 			if errors.Is(err, projectclient.ErrNotFound) {
 				fmt.Fprintf(os.Stderr, "Cluster does not exist. Either it does not exist, or you don't have access to it.\n")
-				return err
-			}
-
-			if errors.Is(err, projectclient.ErrBadGateway) {
-				fmt.Fprint(os.Stderr, gatewayError)
 				return err
 			}
 
@@ -179,11 +170,6 @@ func setConfig(ctx context.Context, client *projectclient.AuthedClient, clusterN
 		}
 		if errors.Is(err, projectclient.ErrNotFound) {
 			fmt.Fprintf(os.Stderr, "Cluster does not exist. Either it does not exist, or you don't have access to it.\n")
-			return err
-		}
-
-		if errors.Is(err, projectclient.ErrBadGateway) {
-			fmt.Fprint(os.Stderr, gatewayError)
 			return err
 		}
 

@@ -16,8 +16,9 @@
 #include "absl/types/span.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/descriptor.h"
-#include "google/protobuf/descriptor.pb.h"
 #include "google/protobuf/descriptor_database.h"
+#include "intrinsic/assets/id_utils.h"
+#include "intrinsic/skills/cc/skill_interface.h"
 #include "intrinsic/skills/proto/equipment.pb.h"
 #include "intrinsic/skills/proto/skill_service_config.pb.h"
 #include "intrinsic/skills/proto/skills.pb.h"
@@ -27,8 +28,15 @@
 namespace intrinsic::skills::internal {
 namespace {}  // namespace
 
-ParameterData::ParameterData(const google::protobuf::Any& default_value)
-    : default_(default_value) {}
+ParameterData::ParameterData(const google::protobuf::Descriptor& descriptor,
+                             const google::protobuf::Any& default_value)
+    : descriptor_(&descriptor), default_(default_value) {}
+
+ParameterData::ParameterData(const google::protobuf::Descriptor& descriptor)
+    : descriptor_(&descriptor), default_(std::nullopt) {}
+
+ReturnTypeData::ReturnTypeData(const google::protobuf::Descriptor* descriptor)
+    : descriptor_(descriptor) {}
 
 ExecutionOptions::ExecutionOptions(bool supports_cancellation)
     : supports_cancellation_(supports_cancellation) {}
@@ -56,16 +64,19 @@ SkillRuntimeData::SkillRuntimeData(const ParameterData& parameter_data,
       id_(id) {}
 
 absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
-    const intrinsic_proto::skills::SkillServiceConfig& skill_service_config) {
+    const intrinsic_proto::skills::SkillServiceConfig& skill_service_config,
+    const google::protobuf::Descriptor* parameter_descriptor,
+    const google::protobuf::Descriptor* return_type_descriptor) {
   return SkillRuntimeData(
       skill_service_config.skill_description()
               .parameter_description()
               .has_default_value()
-          ? ParameterData(skill_service_config.skill_description()
+          ? ParameterData(*parameter_descriptor,
+                          skill_service_config.skill_description()
                               .parameter_description()
                               .default_value())
-          : ParameterData(),
-      ReturnTypeData(),
+          : ParameterData(*parameter_descriptor),
+      ReturnTypeData(return_type_descriptor),
       skill_service_config.execution_service_options()
               .has_cancellation_ready_timeout()
           ? ExecutionOptions(

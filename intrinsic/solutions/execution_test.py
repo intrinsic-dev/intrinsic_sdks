@@ -143,7 +143,7 @@ class ExecutiveTest(parameterized.TestCase):
       self,
       states: list[behavior_tree_pb2.BehaviorTree.State],
   ):
-    """Makes a GetOperation sequence."""
+    """Makes a create call to prime the executive client with an operation."""
     self._executive_service_stub.GetOperation.side_effect = [
         self._create_operation_proto(state) for state in states
     ]
@@ -196,21 +196,6 @@ class ExecutiveTest(parameterized.TestCase):
             name=_OPERATION_NAME,
             skill_trace_handling=run_metadata_pb2.RunMetadata.TracingInfo.SKILL_TRACES_LINK,
         )
-    )
-
-  def test_operation_find_name(self):
-    """Tests if executive.operation.find_tree_and_node_id works."""
-    my_bt = bt.BehaviorTree(root=bt.Sequence(children=[bt.Fail(name='a_node')]))
-    my_bt.tree_id = 'tree'
-    my_bt.root.node_id = 1
-    my_bt.root.children[0].node_id = 2
-    self._create_operation(my_bt)
-    self._setup_get_operation(
-        behavior_tree_pb2.BehaviorTree.ACCEPTED, bt_proto=my_bt.proto
-    )
-
-    self.assertEqual(
-        self._executive.operation.find_tree_and_node_id('a_node'), ('tree', 2)
     )
 
   def test_run_async_fails_on_unavailable_error(self):
@@ -333,39 +318,10 @@ class ExecutiveTest(parameterized.TestCase):
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
     my_action = behavior_call.Action(skill_id='my_action')
     self._executive.run(my_action)
-
-    create_request = executive_service_pb2.CreateOperationRequest()
-    create_request.behavior_tree.root.task.call_behavior.CopyFrom(
-        my_action.proto
-    )
-    self._executive_service_stub.CreateOperation.assert_called_once_with(
-        create_request
-    )
-    self._executive_service_stub.GetOperation.assert_called_with(
-        operations_pb2.GetOperationRequest(name=_OPERATION_NAME)
-    )
-
-  def test_operation_done(self):
-    """Tests if executive.operation.done works."""
-    self._setup_create_operation()
-    self._setup_start_operation()
-    self._setup_get_operation_sequence([
-        behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-    ])
-
-    my_action = behavior_call.Action(skill_id='my_action')
-    self._executive.run(my_action)
-
-    self.assertTrue(self._executive.operation.done)
 
     create_request = executive_service_pb2.CreateOperationRequest()
     create_request.behavior_tree.root.task.call_behavior.CopyFrom(
@@ -384,7 +340,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_start_operation()
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
@@ -426,7 +381,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
@@ -509,7 +463,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
     my_action_list = [
@@ -565,7 +518,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
     bt_instance = bt.BehaviorTree('test_bt')
@@ -597,7 +549,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
     my_node = bt.Fail()
@@ -627,7 +578,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
     my_action = behavior_call.Action(skill_id='my_action')
@@ -651,7 +601,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
         behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
@@ -688,9 +637,6 @@ class ExecutiveTest(parameterized.TestCase):
 
     self._executive_service_stub.GetOperation.side_effect = [
         create_operation(behavior_tree_pb2.BehaviorTree.RUNNING),
-        create_operation(behavior_tree_pb2.BehaviorTree.FAILED, [error_report]),
-        create_operation(behavior_tree_pb2.BehaviorTree.FAILED, [error_report]),
-        # extra call in error case as get_errors also accesses self.operation
         create_operation(behavior_tree_pb2.BehaviorTree.FAILED, [error_report]),
     ]
 
@@ -937,7 +883,6 @@ class ExecutiveTest(parameterized.TestCase):
     self._setup_get_operation_sequence([
         behavior_tree_pb2.BehaviorTree.RUNNING,
         behavior_tree_pb2.BehaviorTree.RUNNING,
-        behavior_tree_pb2.BehaviorTree.SUCCEEDED,
         behavior_tree_pb2.BehaviorTree.SUCCEEDED,
     ])
 
