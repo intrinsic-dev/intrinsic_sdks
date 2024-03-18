@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	clusterName string
+	clusterName  string
+	rollbackFlag bool
 )
 
 // Client helps run auth'ed requests for a specific cluster
@@ -76,7 +77,7 @@ func (c *Client) runReq(ctx context.Context, method, subpath string, body io.Rea
 	switch resp.StatusCode {
 	case http.StatusOK:
 	default:
-		return nil, fmt.Errorf("HTTP %d %q request for %s: %s", resp.StatusCode, req.Method, req.URL.String(), rb)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, rb)
 	}
 	return rb, nil
 }
@@ -85,7 +86,7 @@ func (c *Client) runReq(ctx context.Context, method, subpath string, body io.Rea
 func (c *Client) Status(ctx context.Context) (*info.Info, error) {
 	b, err := c.runReq(ctx, http.MethodGet, "/state", nil)
 	if err != nil {
-		return nil, fmt.Errorf("runReq(/state): %w", err)
+		return nil, err
 	}
 	ui := &info.Info{}
 	if err := json.Unmarshal(b, ui); err != nil {
@@ -103,10 +104,8 @@ func (c *Client) SetMode(ctx context.Context, mode string) error {
 	if err != nil {
 		return fmt.Errorf("marshal mode request: %w", err)
 	}
-	if _, err := c.runReq(ctx, http.MethodPost, "/setmode", bytes.NewReader(body)); err != nil {
-		return fmt.Errorf("setmode request: %w", err)
-	}
-	return nil
+	_, err = c.runReq(ctx, http.MethodPost, "/setmode", bytes.NewReader(body))
+	return err
 }
 
 // GetMode runs a request to read the update mode
@@ -122,7 +121,7 @@ func (c *Client) GetMode(ctx context.Context) (string, error) {
 func (c *Client) ClusterProjectTarget(ctx context.Context) (*messages.ClusterProjectTargetResponse, error) {
 	b, err := c.runReq(ctx, http.MethodGet, "/projecttarget", nil)
 	if err != nil {
-		return nil, fmt.Errorf("runReq(/state): %w", err)
+		return nil, err
 	}
 	r := &messages.ClusterProjectTargetResponse{}
 	if err := json.Unmarshal(b, r); err != nil {
@@ -136,7 +135,7 @@ func (c *Client) Run(ctx context.Context) ([]byte, error) {
 	return c.runReq(ctx, http.MethodPost, "/run", nil)
 }
 
-func forCluster(project, cluster string) (Client, error) {
+func forCluster(project, cluster string, rollback bool) (Client, error) {
 	configuration, err := auth.NewStore().GetConfiguration(project)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -156,6 +155,9 @@ func forCluster(project, cluster string) (Client, error) {
 	// cluster is a query parameter for clusterupdate
 	v := url.Values{}
 	v.Set("cluster", cluster)
+	if rollback {
+		v.Set("rollback", "y")
+	}
 
 	return Client{
 		client: http.DefaultClient,
@@ -187,7 +189,7 @@ var modeCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		projectName := ClusterCmdViper.GetString(orgutil.KeyProject)
-		c, err := forCluster(projectName, clusterName)
+		c, err := forCluster(projectName, clusterName, false)
 		if err != nil {
 			return fmt.Errorf("cluster upgrade client: %w", err)
 		}
@@ -195,13 +197,13 @@ var modeCmd = &cobra.Command{
 		case 0:
 			mode, err := c.GetMode(ctx)
 			if err != nil {
-				return fmt.Errorf("get cluster upgrade mode: %w", err)
+				return fmt.Errorf("get cluster upgrade mode:\n%w", err)
 			}
 			fmt.Printf("update mechanism mode: %s\n", mode)
 			return nil
 		case 1:
 			if err := c.SetMode(ctx, args[0]); err != nil {
-				return fmt.Errorf("set cluster upgrade mode: %w", err)
+				return fmt.Errorf("set cluster upgrade mode:\n%w", err)
 			}
 			return nil
 		default:
@@ -231,13 +233,13 @@ var showTargetCmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		projectName := ClusterCmdViper.GetString(orgutil.KeyProject)
-		c, err := forCluster(projectName, clusterName)
+		c, err := forCluster(projectName, clusterName, false)
 		if err != nil {
-			return fmt.Errorf("cluster upgrade client: %w", err)
+			return fmt.Errorf("cluster upgrade client:\n%w", err)
 		}
 		r, err := c.ClusterProjectTarget(ctx)
 		if err != nil {
-			return fmt.Errorf("cluster status: %w", err)
+			return fmt.Errorf("cluster status:\n%w", err)
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 		fmt.Fprintf(w, "flowstate\tos\n")
@@ -264,13 +266,13 @@ var runCmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		projectName := ClusterCmdViper.GetString(orgutil.KeyProject)
-		c, err := forCluster(projectName, clusterName)
+		c, err := forCluster(projectName, clusterName, rollbackFlag)
 		if err != nil {
-			return fmt.Errorf("cluster upgrade client: %w", err)
+			return fmt.Errorf("cluster upgrade client:\n%w", err)
 		}
 		_, err = c.Run(ctx)
 		if err != nil {
-			return fmt.Errorf("cluster upgrade run: %w", err)
+			return fmt.Errorf("cluster upgrade run:\n%w", err)
 		}
 		fmt.Printf("update for cluster %q in %q kicked off successfully.\n", clusterName, projectName)
 		fmt.Printf("monitor running `inctl cluster upgrade --project %s --cluster %s\n`", projectName, clusterName)
@@ -288,17 +290,18 @@ var clusterUpgradeCmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		projectName := ClusterCmdViper.GetString(orgutil.KeyProject)
-		c, err := forCluster(projectName, clusterName)
+		c, err := forCluster(projectName, clusterName, false)
 		if err != nil {
-			return fmt.Errorf("cluster upgrade client: %w", err)
+			return fmt.Errorf("cluster upgrade client:\n%w", err)
 		}
 		ui, err := c.Status(ctx)
 		if err != nil {
-			return fmt.Errorf("cluster status: %w", err)
+			return fmt.Errorf("cluster status:\n%w", err)
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		fmt.Fprintf(w, "project\tcluster\tmode\tstate\tflowstate\tos\n")
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", projectName, clusterName, ui.Mode, ui.State, ui.CurrentBase, ui.CurrentOS)
+		rollback := ui.RollbackOS != "" && ui.RollbackBase != ""
+		fmt.Fprintf(w, "project\tcluster\tmode\tstate\trollback available\tflowstate\tos\n")
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\t%s\n", projectName, clusterName, ui.Mode, ui.State, rollback, ui.CurrentBase, ui.CurrentOS)
 		w.Flush()
 		return nil
 	},
@@ -309,6 +312,7 @@ func init() {
 	clusterUpgradeCmd.PersistentFlags().StringVar(&clusterName, "cluster", "", "Name of cluster to upgrade.")
 	clusterUpgradeCmd.MarkPersistentFlagRequired("cluster")
 	clusterUpgradeCmd.AddCommand(runCmd)
+	runCmd.PersistentFlags().BoolVar(&rollbackFlag, "rollback", false, "Whether to trigger a rollback update instead")
 	clusterUpgradeCmd.AddCommand(modeCmd)
 	clusterUpgradeCmd.AddCommand(showTargetCmd)
 }

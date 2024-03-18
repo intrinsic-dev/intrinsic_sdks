@@ -60,7 +60,7 @@ def intrinsic_sdks_deps_0():
         sha256 = "b7cd301ef7b0ece28d20d3e778697a5e3b81828393150bed04838c0c52963a01",
         strip_prefix = "toolchains_llvm-0.10.3",
         canonical_id = "0.10.3",
-        url = "https://github.com/grailbio/bazel-toolchain/releases/download/0.10.3/toolchains_llvm-0.10.3.tar.gz",
+        url = "https://github.com/bazel-contrib/toolchains_llvm/releases/download/0.10.3/toolchains_llvm-0.10.3.tar.gz",
     )
 
     # Python rules, toolchain and pip dependencies
@@ -95,9 +95,9 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "aspect_bazel_lib",
-        sha256 = "4c1de11ebabc23a3c976b73a2b2647596f545beda8a61d2c1c034e07f3f8b976",
-        strip_prefix = "bazel-lib-2.0.2",
-        url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.0.2/bazel-lib-v2.0.2.tar.gz",
+        sha256 = "f5ea76682b209cc0bd90d0f5a3b26d2f7a6a2885f0c5f615e72913f4805dbb0d",
+        strip_prefix = "bazel-lib-2.5.0",
+        url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.5.0/bazel-lib-v2.5.0.tar.gz",
     )
 
     maybe(
@@ -218,6 +218,7 @@ def intrinsic_sdks_deps_0():
         sha256 = "2037875b9a4456dce4a79d112a8ae885bbc4aad968e6587dca6e64f3a0900cdf",
         strip_prefix = "rules_cc-0.0.9",
         urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/rules_cc/releases/download/0.0.9/rules_cc-0.0.9.tar.gz",
             "https://github.com/bazelbuild/rules_cc/releases/download/0.0.9/rules_cc-0.0.9.tar.gz",
         ],
     )
