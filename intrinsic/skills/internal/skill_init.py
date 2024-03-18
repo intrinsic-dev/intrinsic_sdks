@@ -6,10 +6,9 @@ from concurrent import futures
 import time
 
 from absl import logging
-from google.protobuf import descriptor_pb2
 import grpc
+from intrinsic.geometry.service import geometry_service_pb2_grpc
 from intrinsic.motion_planning.proto import motion_planner_service_pb2_grpc
-from intrinsic.skills.internal import proto_utils
 from intrinsic.skills.internal import skill_repository as skill_repo
 from intrinsic.skills.internal import skill_service_impl
 from intrinsic.skills.proto import skill_service_config_pb2
@@ -33,6 +32,15 @@ def _create_motion_planner_service_stub(
   # Blocks for the duration of the timeout until the channel is ready.
   grpc.channel_ready_future(channel).result(timeout=connection_timeout)
   return motion_planner_service_pb2_grpc.MotionPlannerServiceStub(channel)
+
+
+def _create_geometry_service_stub(
+    address: str, connection_timeout: int
+) -> geometry_service_pb2_grpc.GeometryServiceStub:
+  channel = grpc.insecure_channel(address)
+  # Blocks for the duration of the timeout until the channel is ready.
+  grpc.channel_ready_future(channel).result(timeout=connection_timeout)
+  return geometry_service_pb2_grpc.GeometryServiceStub(channel)
 
 
 def get_skill_service_config(
@@ -113,12 +121,16 @@ def skill_init(
   motion_planner_service = _create_motion_planner_service_stub(
       motion_planner_service_address, connection_timeout
   )
+  geometry_service = _create_geometry_service_stub(
+      geometry_service_address, connection_timeout
+  )
 
   # Initialize the projector service.
   projector_servicer = skill_service_impl.SkillProjectorServicer(
       skill_repository=skill_repository,
       object_world_service=object_world_service,
       motion_planner_service=motion_planner_service,
+      geometry_service=geometry_service,
   )
   skill_service_pb2_grpc.add_ProjectorServicer_to_server(
       projector_servicer, server
@@ -129,6 +141,7 @@ def skill_init(
       skill_repository=skill_repository,
       object_world_service=object_world_service,
       motion_planner_service=motion_planner_service,
+      geometry_service=geometry_service,
   )
   skill_service_pb2_grpc.add_ExecutorServicer_to_server(
       executor_servicer, server
@@ -136,40 +149,24 @@ def skill_init(
 
   # Initialize the skill information service if --skill_service_config_filename
   # given (which means we're running a modular skill server).
-  if skill_service_config.skill_name or skill_service_config.HasField(
-      "skill_description"
-  ):
+  if skill_service_config.HasField("skill_description"):
     if (
-        skill_service_config.skill_name
+        skill_service_config.skill_description.skill_name
         not in skill_repository.get_skill_aliases()
     ):
       raise ValueError(
           "Could not find skill {} in skill modules.".format(
-              skill_service_config.skill_name
+              skill_service_config.skill_description.skill_name
           )
       )
     logging.info(
         "Adding skill information server with modular skill %s",
-        skill_service_config.skill_name,
+        skill_service_config.skill_description.skill_name,
     )
 
-    parameter_file_descriptor_set = descriptor_pb2.FileDescriptorSet()
-    if skill_service_config.parameter_descriptor_filename:
-      parameter_file_descriptor_set = descriptor_pb2.FileDescriptorSet()
-      with open(skill_service_config.parameter_descriptor_filename, "rb") as f:
-        parameter_file_descriptor_set.ParseFromString(f.read())
-
-    if not skill_service_config.HasField("skill_description"):
-      skill_object = skill_repository.get_skill(skill_service_config.skill_name)
-      skill = proto_utils.proto_from_skill(skill_object)
-
-      proto_utils.add_file_descriptor_set_without_source_code_info(
-          skill_object, parameter_file_descriptor_set, skill
-      )
-    else:
-      skill = skill_service_config.skill_description
-
-    skill_info_servicer = skill_service_impl.SkillInformationServicer(skill)
+    skill_info_servicer = skill_service_impl.SkillInformationServicer(
+        skill_service_config.skill_description
+    )
     skill_service_pb2_grpc.add_SkillInformationServicer_to_server(
         skill_info_servicer, server
     )

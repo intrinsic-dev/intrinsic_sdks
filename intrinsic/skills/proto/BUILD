@@ -30,39 +30,6 @@ go_proto_library(
 )
 
 proto_library(
-    name = "equipment_registry_proto",
-    srcs = ["equipment_registry.proto"],
-    deps = [
-        ":equipment_proto",
-        "//intrinsic/resources/proto:resource_handle_proto",
-    ],
-)
-
-cc_proto_library(
-    name = "equipment_registry_cc_proto",
-    deps = [":equipment_registry_proto"],
-)
-
-cc_grpc_library(
-    name = "equipment_registry_cc_grpc_proto",
-    srcs = [":equipment_registry_proto"],
-    grpc_only = True,
-    deps = [":equipment_registry_cc_proto"],
-)
-
-py_proto_library(
-    name = "equipment_registry_py_pb2",
-    deps = [":equipment_registry_proto"],
-)
-
-py_grpc_library(
-    name = "equipment_registry_py_pb2_grpc",
-    srcs = [":equipment_registry_proto"],
-    grpc_library = requirement("grpcio"),
-    deps = [":equipment_registry_py_pb2"],
-)
-
-proto_library(
     name = "skills_proto",
     srcs = ["skills.proto"],
     deps = [
@@ -356,6 +323,7 @@ proto_library(
     srcs = ["skill_manifest.proto"],
     deps = [
         ":equipment_proto",
+        "//intrinsic/assets/proto:documentation_proto",
         "//intrinsic/assets/proto:id_proto",
         "//intrinsic/assets/proto:vendor_proto",
         "@com_google_protobuf//:any_proto",
@@ -373,6 +341,7 @@ go_proto_library(
     go_deps = [
         ":equipment_go_proto",
         "//intrinsic/resources/proto:resource_handle_go_proto",
+        "//intrinsic/assets/proto:documentation_go_proto",
         "//intrinsic/assets/proto:vendor_go_proto",
         "//intrinsic/assets/proto:id_go_proto",
     ],
@@ -385,10 +354,20 @@ py_proto_library(
 )
 
 proto_library(
+    name = "skill_parameter_metadata_proto",
+    srcs = ["skill_parameter_metadata.proto"],
+    deps = ["@com_google_protobuf//:descriptor_proto"],
+)
+
+go_proto_library(
+    name = "skill_parameter_metadata_go_proto",
+    deps = [":skill_parameter_metadata_proto"],
+)
+
+proto_library(
     name = "skills_all_protos",
     deps = [
         ":equipment_proto",
-        ":equipment_registry_proto",
         ":error_proto",
         ":footprint_proto",
         ":motion_targets_proto",

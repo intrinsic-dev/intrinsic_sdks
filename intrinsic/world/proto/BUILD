@@ -59,6 +59,7 @@ proto_library(
     name = "geometry_component_proto",
     srcs = ["geometry_component.proto"],
     deps = [
+        "//intrinsic/geometry/service:geometry_storage_refs_proto",
         "//intrinsic/math/proto:matrix_proto",
         "//intrinsic/math/proto:point_proto",
     ],
@@ -79,6 +80,7 @@ go_proto_library(
     go_deps = [
         "//intrinsic/math/proto:matrix_go_proto",
         "//intrinsic/math/proto:point_go_proto",
+        "//intrinsic/geometry/service:geometry_storage_refs_go_proto",
     ],
     deps = [":geometry_component_proto"],
 )
@@ -133,10 +135,12 @@ proto_library(
         ":collision_action_proto",
         ":collision_settings_proto",
         ":geometry_component_proto",
+        ":gripper_component_proto",
         ":kinematics_component_proto",
         ":object_world_refs_proto",
         ":object_world_updates_proto",
         ":physics_component_proto",
+        ":sensor_component_proto",
         ":simulation_component_proto",
         ":spawner_component_proto",
         "//intrinsic/icon/proto:cart_space_proto",
@@ -180,6 +184,7 @@ proto_library(
         ":collision_action_proto",
         ":collision_settings_proto",
         ":geometry_component_proto",
+        ":gripper_component_proto",
         ":object_world_refs_proto",
         ":physics_component_proto",
         ":simulation_component_proto",
@@ -275,6 +280,36 @@ go_proto_library(
         "//intrinsic/math/proto:vector3_go_proto",
     ],
     deps = [":spawner_component_proto"],
+)
+
+proto_library(
+    name = "sensor_component_proto",
+    srcs = ["sensor_component.proto"],
+)
+
+cc_proto_library(
+    name = "sensor_component_cc_proto",
+    deps = [":sensor_component_proto"],
+)
+
+go_proto_library(
+    name = "sensor_component_go_proto",
+    deps = ["sensor_component_proto"],
+)
+
+proto_library(
+    name = "gripper_component_proto",
+    srcs = ["gripper_component.proto"],
+)
+
+cc_proto_library(
+    name = "gripper_component_cc_proto",
+    deps = [":gripper_component_proto"],
+)
+
+go_proto_library(
+    name = "gripper_component_go_proto",
+    deps = ["gripper_component_proto"],
 )
 
 proto_library(

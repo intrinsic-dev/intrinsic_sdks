@@ -11,9 +11,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"intrinsic/assets/cmdutils"
 	skillregistrygrpcpb "intrinsic/skills/proto/skill_registry_go_grpc_proto"
 	skillCmd "intrinsic/skills/tools/skill/cmd"
-	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 	"intrinsic/skills/tools/skill/cmd/listutil"
 	"intrinsic/skills/tools/skill/cmd/skillid"
@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	cmdFlags = cmdutil.NewCmdFlags()
+	cmdFlags = cmdutils.NewCmdFlags()
 
 	filterOptions = []string{sideloadedFilter, releasedFilter}
 )
@@ -73,10 +73,13 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List skills that are loaded into a solution.",
 	Example: `List skills of a running solution (solution id, not display name)
-$	inctl skill list --project my-project --solution my-solution-id
+$ inctl skill list --project my-project --solution my-solution-id
+
+	To find a running solution's id, run:
+	$ inctl solution list --project my-project --filter "running_on_hw,running_in_sim" --output json
 
 Set the cluster on which the solution is running
-$	inctl skill list --project my-project --cluster my-cluster
+$ inctl skill list --project my-project --cluster my-cluster
 `,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {

@@ -12,8 +12,8 @@ import "intrinsic/logging/proto/context.proto";
 import "intrinsic/math/proto/pose.proto";
 import "intrinsic/motion_planning/proto/motion_planner_config.proto";
 import "intrinsic/motion_planning/proto/motion_specification.proto";
-import "intrinsic/motion_planning/proto/motion_target.proto";
 import "intrinsic/world/proto/collision_settings.proto";
+import "intrinsic/world/proto/geometric_constraints.proto";
 import "intrinsic/world/proto/object_world_refs.proto";
 
 // Different ways to specify a robot.
@@ -36,11 +36,8 @@ message RobotSpecification {
   // Default cartesian robot limits to apply to the motion.
   intrinsic_proto.icon.CartesianLimits default_cartesian_limits = 3;
 
-  // Joint hardware (l1) limits of the robot. We can not exceed these limits.
-  // Note that the field JointLimits.max_effort is not supported and will
-  // always be filled with zeroes. If not specified, the default limits from
-  // the world are used as the hardware limits.
-  optional intrinsic_proto.JointLimits l1_joint_limits = 4;
+  reserved 4;
+  reserved "l1_joint_limits";
 }
 
 message MotionPlanningRequest {
@@ -108,7 +105,7 @@ message TrajectoryPlanningResponse {
 message IkRequest {
   string world_id = 1;
 
-  CartesianMotionTarget target = 2;
+  intrinsic_proto.world.geometric_constraints.GeometricConstraint target = 2;
 
   // [Optional] Starting joint configuration, used to seed the Ik. If not set,
   // the current position in the world will be used.

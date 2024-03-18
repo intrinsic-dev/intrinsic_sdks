@@ -8,15 +8,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"intrinsic/assets/cmdutils"
 	skillCmd "intrinsic/skills/tools/skill/cmd"
-	"intrinsic/skills/tools/skill/cmd/cmdutil"
 )
 
 const (
 	keyDescription = "description"
 )
 
-var cmdFlags = cmdutil.NewCmdFlags()
+var cmdFlags = cmdutils.NewCmdFlags()
 
 var (
 	buildCommand    = "bazel"
@@ -51,6 +51,7 @@ func init() {
 
 	cmdFlags.AddFlagDefault("skill")
 	cmdFlags.AddFlagDryRun()
+	cmdFlags.AddFlagIgnoreExisting("skill")
 	cmdFlags.AddFlagManifestFile()
 	cmdFlags.AddFlagManifestTarget()
 	cmdFlags.AddFlagReleaseNotes("skill")
