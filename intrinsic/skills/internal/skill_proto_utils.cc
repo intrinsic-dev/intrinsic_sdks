@@ -5,9 +5,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -56,7 +58,7 @@ absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
   } else {
     skill.set_id_version(skill.id());
   }
-  skill.set_doc_string(skill_interface.DocString());
+  skill.set_description(skill_interface.DocString());
   const auto equipment = skill_interface.EquipmentRequired();
   skill.mutable_resource_selectors()->insert(equipment.begin(),
                                              equipment.end());
@@ -93,21 +95,6 @@ absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
   skill.mutable_execution_options()->set_supports_cancellation(
       skill_interface.SupportsCancellation());
 
-  return skill;
-}
-
-absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
-    const SkillSignatureInterface& skill_interface,
-    const google::protobuf::Message& param_defaults,
-    std::optional<absl::string_view> semver_version) {
-  INTRINSIC_ASSIGN_OR_RETURN(intrinsic_proto::skills::Skill skill,
-                             BuildSkillProto(skill_interface, semver_version));
-  if (!skill.mutable_parameter_description()->mutable_default_value()->PackFrom(
-          param_defaults)) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Failed to serialize param_defaults. Message type name: ",
-                     param_defaults.GetTypeName()));
-  }
   return skill;
 }
 
@@ -222,29 +209,6 @@ absl::Status AddFileDescriptorSetWithoutSourceCodeInfo(
 
 }  // namespace
 
-absl::Status AddFileDescriptorSetWithoutSourceCodeInfo(
-    const SkillSignatureInterface& skill,
-    const google::protobuf::FileDescriptorSet& parameter_file_descriptor_set,
-    const google::protobuf::FileDescriptorSet& return_value_file_descriptor_set,
-    intrinsic_proto::skills::Skill& skill_proto) {
-  return AddFileDescriptorSetWithoutSourceCodeInfo(
-      skill.GetParameterDescriptor() != nullptr
-          ? absl::WrapUnique<MessageData>(new MessageData{
-                .message_full_name =
-                    skill.GetParameterDescriptor()->full_name(),
-                .file_descriptor_set = parameter_file_descriptor_set,
-            })
-          : nullptr,
-      skill.GetReturnValueDescriptor() != nullptr
-          ? absl::WrapUnique<MessageData>(new MessageData{
-                .message_full_name =
-                    skill.GetReturnValueDescriptor()->full_name(),
-                .file_descriptor_set = return_value_file_descriptor_set,
-            })
-          : nullptr,
-      skill.GetDefaultParameters(), skill_proto);
-}
-
 absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
     const intrinsic_proto::skills::Manifest& manifest,
     const google::protobuf::FileDescriptorSet& parameter_file_descriptor_set,
@@ -264,7 +228,7 @@ absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
   } else {
     skill.set_id_version(skill.id());
   }
-  skill.set_doc_string(manifest.documentation().doc_string());
+  skill.set_description(manifest.documentation().description());
   *skill.mutable_resource_selectors() =
       manifest.dependencies().required_equipment();
 

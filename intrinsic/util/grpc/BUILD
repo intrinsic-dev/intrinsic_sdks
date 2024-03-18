@@ -14,7 +14,10 @@ cc_library(
     name = "channel_interface",
     srcs = ["channel_interface.cc"],
     hdrs = ["channel_interface.h"],
-    deps = ["@com_github_grpc_grpc//:grpc++"],
+    deps = [
+        ":grpc",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
 )
 
 cc_library(
@@ -56,12 +59,15 @@ cc_library(
     hdrs = ["grpc.h"],
     deps = [
         "//intrinsic/icon/release:grpc_time_support",
+        "//intrinsic/util/thread",
         "@com_github_grpc_grpc//:grpc++",
         "@com_github_grpc_grpc//src/proto/grpc/health/v1:health_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
     ],
 )

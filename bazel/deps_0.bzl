@@ -32,10 +32,10 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "io_bazel_rules_go",
-        sha256 = "91585017debb61982f7054c9688857a2ad1fd823fc3f9cb05048b0025c47d023",
+        sha256 = "d6ab6b57e48c09523e93050f13698f708428cfd5e619252e369d377af6597707",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
-            "https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
+            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.43.0/rules_go-v0.43.0.zip",
+            "https://github.com/bazelbuild/rules_go/releases/download/v0.43.0/rules_go-v0.43.0.zip",
         ],
     )
 
@@ -50,21 +50,18 @@ def intrinsic_sdks_deps_0():
     )
 
     # CC toolchain
-    BAZEL_TOOLCHAIN_TAG = "0.8.1"
-    BAZEL_TOOLCHAIN_SHA = "751bbe30bcaa462aef792b18bbd16c401af42fc937c42ad0ae463f099dc04ea2"
-    maybe(
-        http_archive,
+    http_archive(
         name = "com_grail_bazel_toolchain",
-        sha256 = BAZEL_TOOLCHAIN_SHA,
-        strip_prefix = "bazel-toolchain-{tag}".format(tag = BAZEL_TOOLCHAIN_TAG),
-        canonical_id = BAZEL_TOOLCHAIN_TAG,
-        url = "https://github.com/grailbio/bazel-toolchain/archive/{tag}.tar.gz".format(tag = BAZEL_TOOLCHAIN_TAG),
+        sha256 = "b7cd301ef7b0ece28d20d3e778697a5e3b81828393150bed04838c0c52963a01",
+        strip_prefix = "toolchains_llvm-0.10.3",
+        canonical_id = "0.10.3",
+        url = "https://github.com/grailbio/bazel-toolchain/releases/download/0.10.3/toolchains_llvm-0.10.3.tar.gz",
     )
 
     # Sysroot and libc
     # How to upgrade:
     # - Find image in https://storage.googleapis.com/chrome-linux-sysroot/ for amd64 for
-    #   a stable Linux (here: Debian stretch), of this pick a current build.
+    #   a stable Linux (here: Debian bullseye), of this pick a current build.
     # - Verify the image contains expected /lib/x86_64-linux-gnu/libc* and defines correct
     #   __GLIBC_MINOR__ in /usr/include/features.h
     # - If system files are not found, add them in ../BUILD.sysroot
@@ -72,11 +69,11 @@ def intrinsic_sdks_deps_0():
         http_archive,
         name = "com_googleapis_storage_chrome_linux_amd64_sysroot",
         build_file = Label("//intrinsic/production/external:BUILD.sysroot"),
-        sha256 = "66bed6fb2617a50227a824b1f9cfaf0a031ce33e6635edaa2148f71a5d50be48",
+        sha256 = "47c02efd920c7f9c6b98b1498443170aa6102507d0672af5e794070833ef7454",
         urls = [
-            # features.h defines GLIBC 2.24. Contains /lib/x86_64-linux-gnu/libc-2.24.so,
-            # last modified by Chrome 2018-02-22.
-            "https://storage.googleapis.com/chrome-linux-sysroot/toolchain/15b7efb900d75f7316c6e713e80f87b9904791b1/debian_stretch_amd64_sysroot.tar.xz",
+            # features.h defines GLIBC 2.31. Contains /lib/x86_64-linux-gnu/libc-2.31.so,
+            # last modified by Chrome 2023-06-15.
+            "https://storage.googleapis.com/chrome-linux-sysroot/toolchain/4c00ba2ad61ca7cc39392f192aa39420e086777c/debian_bullseye_amd64_sysroot.tar.xz",
         ],
     )
 
@@ -89,7 +86,6 @@ def intrinsic_sdks_deps_0():
         sha256 = "3046a47488b4e67317cdfa4c53e32b99ea68657ef53b82204aac46e22957ceac",
     )
 
-    # Docker
     maybe(
         http_archive,
         name = "rules_license",
@@ -110,6 +106,21 @@ def intrinsic_sdks_deps_0():
         sha256 = "8c20f74bca25d2d442b327ae26768c02cf3c99e93fad0381f32be9aab1967675",
     )
 
+    maybe(
+        http_archive,
+        name = "aspect_bazel_lib",
+        sha256 = "4c1de11ebabc23a3c976b73a2b2647596f545beda8a61d2c1c034e07f3f8b976",
+        strip_prefix = "bazel-lib-2.0.2",
+        url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.0.2/bazel-lib-v2.0.2.tar.gz",
+    )
+
+    maybe(
+        http_archive,
+        name = "rules_oci",
+        sha256 = "d41d0ba7855f029ad0e5ee35025f882cbe45b0d5d570842c52704f7a47ba8668",
+        strip_prefix = "rules_oci-1.4.3",
+        url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.4.3/rules_oci-v1.4.3.tar.gz",
+    )
     maybe(
         http_archive,
         name = "io_bazel_rules_docker",
@@ -277,7 +288,7 @@ def intrinsic_sdks_deps_0():
         commit = "2bf606ceddb0b7d874022defa8ea6d2d3e1605ad",  # May 24, 2023
         remote = "https://github.com/pybind/pybind11_abseil.git",
         repo_mapping = {"@local_config_python": "@local_config_python"},
-        shallow_since = "1647991761 -0700",
+        shallow_since = "1684958620 -0700",
     )
 
     maybe(
@@ -295,7 +306,7 @@ def intrinsic_sdks_deps_0():
         commit = "5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78",  #  Jun 19, 2023
         remote = "https://github.com/pybind/pybind11_protobuf.git",
         repo_mapping = {"@local_config_python": "@local_config_python"},
-        shallow_since = "1642616122 -0800",
+        shallow_since = "1687199891 -0700",
     )
 
     maybe(

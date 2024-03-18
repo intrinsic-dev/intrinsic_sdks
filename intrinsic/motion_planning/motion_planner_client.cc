@@ -15,6 +15,7 @@
 #include "intrinsic/icon/proto/cart_space_conversion.h"
 #include "intrinsic/icon/proto/joint_space.pb.h"
 #include "intrinsic/icon/release/status_helpers.h"
+#include "intrinsic/logging/proto/context.pb.h"
 #include "intrinsic/math/proto_conversion.h"
 #include "intrinsic/motion_planning/conversions.h"
 #include "intrinsic/motion_planning/proto/motion_planner_config.pb.h"
@@ -26,67 +27,6 @@
 
 namespace intrinsic {
 namespace motion_planning {
-
-namespace {
-
-absl::StatusOr<MotionPlannerClient::PlanPathResult>
-HandlePlanPathRequestWithSetTarget(
-    intrinsic_proto::motion_planning::PlanPathRequest request,
-    const world::KinematicObject& robot,
-    const MotionPlannerClient::PlanPathOptions& options,
-    const std::string& world_id,
-    intrinsic_proto::motion_planning::MotionPlannerService::StubInterface&
-        motion_planner_service) {
-  request.set_world_id(world_id);
-  request.mutable_robot_reference()->mutable_object_id()->set_id(
-      robot.Id().value());
-
-  if (options.starting_joints.size() > 0) {
-    VectorXdToRepeatedDouble(
-        options.starting_joints,
-        request.mutable_starting_joints()->mutable_joints());
-  }
-
-  if (options.collision_settings.has_value()) {
-    *request.mutable_collision_settings() = *options.collision_settings;
-  }
-
-  request.set_ensure_same_branch(options.ensure_same_branch);
-  request.set_compute_swept_volume(options.compute_swept_volume);
-
-  if (options.path_hint.has_value()) {
-    request.mutable_path_hint()->Reserve(options.path_hint->size());
-    for (const auto& waypoint : *options.path_hint) {
-      VectorXdToRepeatedDouble(waypoint,
-                               request.add_path_hint()->mutable_joints());
-    }
-  }
-
-  intrinsic_proto::motion_planning::PlanPathResponse response;
-  grpc::ClientContext ctx;
-  INTRINSIC_RETURN_IF_ERROR(
-      motion_planner_service.PlanPath(&ctx, request, &response));
-
-  MotionPlannerClient::PlanPathResult result;
-  result.path = ToVectorXds(response.path());
-  result.swept_volume.insert(result.swept_volume.begin(),
-                             response.swept_volume().begin(),
-                             response.swept_volume().end());
-
-  return result;
-}
-
-}  // namespace
-
-const MotionPlannerClient::PlanPathOptions&
-MotionPlannerClient::PlanPathOptions::Defaults() {
-  static const auto* defaults = new MotionPlannerClient::PlanPathOptions({
-      .ensure_same_branch = false,
-      .compute_swept_volume = false,
-  });
-
-  return *defaults;
-}
 
 const MotionPlannerClient::MotionPlanningOptions&
 MotionPlannerClient::MotionPlanningOptions::Defaults() {
@@ -106,47 +46,14 @@ MotionPlannerClient::MotionPlannerClient(
     : world_id_(world_id),
       motion_planner_service_(std::move(motion_planner_service)) {}
 
-absl::StatusOr<MotionPlannerClient::PlanPathResult>
-MotionPlannerClient::PlanPath(const world::KinematicObject& robot,
-                              const eigenmath::VectorXd& joint_target,
-                              const PlanPathOptions& options) {
-  intrinsic_proto::motion_planning::PlanPathRequest request;
-  VectorXdToRepeatedDouble(joint_target,
-                           request.mutable_joint_target()->mutable_joints());
-  return HandlePlanPathRequestWithSetTarget(
-      std::move(request), robot, options, world_id_, *motion_planner_service_);
-}
-
-absl::StatusOr<MotionPlannerClient::PlanPathResult>
-MotionPlannerClient::PlanPath(
-    const world::KinematicObject& robot,
-    const intrinsic_proto::motion_planning::CartesianMotionTarget&
-        cartesian_target,
-    const PlanPathOptions& options) {
-  intrinsic_proto::motion_planning::PlanPathRequest request;
-  *request.mutable_cartesian_target() = cartesian_target;
-  return HandlePlanPathRequestWithSetTarget(
-      std::move(request), robot, options, world_id_, *motion_planner_service_);
-}
-
-absl::StatusOr<MotionPlannerClient::PlanPathResult>
-MotionPlannerClient::PlanPath(
-    const world::KinematicObject& robot,
-    const intrinsic_proto::motion_planning::ConstrainedMotionTarget& target,
-    const PlanPathOptions& options) {
-  intrinsic_proto::motion_planning::PlanPathRequest request;
-  *request.mutable_constrained_target() = target;
-  return HandlePlanPathRequestWithSetTarget(
-      std::move(request), robot, options, world_id_, *motion_planner_service_);
-}
-
 absl::StatusOr<MotionPlannerClient::PlanTrajectoryResult>
 MotionPlannerClient::PlanTrajectory(
     const intrinsic_proto::motion_planning::RobotSpecification&
         robot_specification,
     const intrinsic_proto::motion_planning::MotionSpecification&
         motion_specification,
-    const MotionPlanningOptions& options, const std::string& caller_id) {
+    const MotionPlanningOptions& options, const std::string& caller_id,
+    const intrinsic_proto::data_logger::Context& context) {
   intrinsic_proto::motion_planning::MotionPlanningRequest request;
   *request.mutable_robot_specification() = robot_specification;
   *request.mutable_motion_specification() = motion_specification;
@@ -158,6 +65,7 @@ MotionPlannerClient::PlanTrajectory(
   request.mutable_motion_planner_config()->mutable_timeout_sec()->set_nanos(
       (options.path_planning_time_out - s) * 1e9);
   request.set_caller_id(caller_id);
+  *request.mutable_context() = context;
 
   intrinsic_proto::motion_planning::TrajectoryPlanningResponse response;
   grpc::ClientContext ctx;

@@ -20,7 +20,8 @@ import (
 
 const (
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
-	hostnameRegexString = `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`
+	hostnameRegexString = `^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?`
+	replaceKey          = "replace"
 )
 
 var (
@@ -54,8 +55,8 @@ func makeNameError(hostname string, index int) string {
 		return "hostname cannot be empty"
 	}
 
-	if len(hostname) > 64 {
-		return "hostname cannot exceed 64 characters"
+	if len(hostname) > 40 {
+		return "hostname cannot exceed 40 characters"
 	}
 
 	if strings.HasSuffix(hostname, "-") {
@@ -155,16 +156,15 @@ var registerCmd = &cobra.Command{
 			fmt.Printf("Sent configuration to server. The device will reboot and apply the configuration within a minute.\n")
 			return nil
 		case http.StatusConflict:
-			return fmt.Errorf("cluster %q already exists. Cannot create it again. Please use a unique value for --hostname", hostname)
+			return fmt.Errorf("cluster %q already exists. Please use a unique value for --hostname if this is a new cluster.\nTo replace the old cluster, call with --%s", hostname, replaceKey)
 		case http.StatusPreconditionFailed:
-			return fmt.Errorf("cluster %q does not exist. please make sure that --cluster_name matches the --hostname from a previously registered cluster.\nIf you want to create a new cluster, do not use --device_role", clusterName)
+			return fmt.Errorf("cluster %q does not exist. Please make sure that --cluster_name matches the --hostname from a previously registered cluster.\nIf you want to create a new cluster, do not use --device_role", clusterName)
 		case http.StatusNotFound:
-			return fmt.Errorf("device %q does not exist. please make sure you have the exact id from the device you are trying to register", deviceID)
+			return fmt.Errorf("device %q does not exist. Please make sure you have the exact id from the device you are trying to register", deviceID)
+		case http.StatusUnauthorized:
+			return fmt.Errorf("your login key has expired or been replaced.\nRun 'inctl auth login --org %s' to update it", orgutil.QualifiedOrg(projectName, orgName))
 		case http.StatusForbidden:
-			if orgName == "" {
-				orgName = fmt.Sprintf("defaultorg@%s", projectName)
-			}
-			return fmt.Errorf("you do not have the necessary permissions to add a cluster on organization %q.\nOpen a support request to get the 'clusterProvisioner' role", orgName)
+			return fmt.Errorf("you do not have the necessary permissions to add a cluster on organization %q.\nOpen a support request to get the 'clusterProvisioner' role", orgutil.QualifiedOrg(projectName, orgName))
 		default:
 			io.Copy(os.Stderr, resp.Body)
 
@@ -178,5 +178,5 @@ func init() {
 	registerCmd.Flags().StringVarP(&deviceRole, "device_role", "", "control-plane", "The role the device has in the cluster. Either 'control-plane' or 'worker'")
 	registerCmd.Flags().BoolVarP(&privateDevice, "private", "", false, "If set to 'true', the device will not be visible to other organization members")
 	registerCmd.Flags().StringVarP(&deviceRegion, "region", "", "unspecified", "This can be used for inventory tracking")
-	registerCmd.Flags().BoolVarP(&replaceDevice, "replace", "", false, "If set to 'true', an existing cluster with the same name will be replaced.\nThis is equivalent to calling 'inctl cluster delete' first")
+	registerCmd.Flags().BoolVarP(&replaceDevice, replaceKey, "", false, "If set to 'true', an existing cluster with the same name will be replaced.\nThis is equivalent to calling 'inctl cluster delete' first")
 }
