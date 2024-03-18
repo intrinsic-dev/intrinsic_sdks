@@ -475,7 +475,7 @@ class Condition:
     )
 
 
-class SignalFlag:
+class EventFlag:
   """Provides the signalling mechanism for waiting on Reactions."""
 
   def __init__(self):
@@ -567,14 +567,38 @@ class TriggerCallback(_Response):
     self.callback = callback
 
 
-class Signal(_Response):
-  """Signals a flag in response to a real-time condition.
+class TriggerRealtimeSignal(_Response):
+  """Triggers a realtime signal.
+
+  This response requires the reaction to be associated with an action. The
+  real-time signal is triggered the first time the reaction condition is met,
+  and never switches back.
+
+  Attributes:
+    realtime_signal_name: The realtime signal to trigger in response.
+  """
+
+  def __init__(
+      self,
+      realtime_signal_name: str,
+  ):
+    """Constructs a Response that triggers the named realtime signal.
+
+    Args:
+      realtime_signal_name: The realtime signal to be triggered. The signal is
+        declared in the associated action signature.
+    """
+    self.realtime_signal_name = realtime_signal_name
+
+
+class Event(_Response):
+  """Signals an event flag in response to a real-time condition.
 
   Attributes:
     flag: The flag to be signalled in response.
   """
 
-  def __init__(self, flag: SignalFlag):
+  def __init__(self, flag: EventFlag):
     """Constructs a Response that signals the given flag.
 
     Args:

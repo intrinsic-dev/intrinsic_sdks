@@ -160,13 +160,13 @@ class SessionTest(absltest.TestCase):
 
     request = types_pb2.ActionsAndReactions()
     callback = mock.Mock()
-    flag = _reactions.SignalFlag()
+    flag = _reactions.EventFlag()
     reactions = [
         _reactions.Reaction(
             _reactions.Condition.is_true('some_condition_var'),
             [
                 _reactions.StartActionInRealTime(start_action_id=20),
-                _reactions.Signal(flag),
+                _reactions.Event(flag),
             ],
         ),
         _reactions.Reaction(
@@ -248,7 +248,9 @@ class SessionTest(absltest.TestCase):
             _reactions.Condition.is_less_than('foo_var', 1.0),
             [
                 _reactions.StartActionInRealTime(start_action_id=20),
-                _reactions.StartActionInRealTime(start_action_id=30),
+                _reactions.TriggerRealtimeSignal(
+                    realtime_signal_name='foo_signal'
+                ),
                 _reactions.StartParallelActionInRealTime(start_action_id=40),
                 _reactions.TriggerCallback(callback),
             ],
@@ -273,7 +275,9 @@ class SessionTest(absltest.TestCase):
             types_pb2.Reaction(
                 reaction_instance_id=2,
                 action_association=types_pb2.Reaction.ActionAssociation(
-                    action_instance_id=0, stop_associated_action=True
+                    action_instance_id=0,
+                    stop_associated_action=False,
+                    triggered_signal_name='foo_signal',
                 ),
                 condition=types_pb2.Condition(
                     comparison=types_pb2.Comparison(
@@ -282,7 +286,6 @@ class SessionTest(absltest.TestCase):
                         double_value=1.0,
                     )
                 ),
-                response=(types_pb2.Response(start_action_instance_id=30)),
             ),
             types_pb2.Reaction(
                 reaction_instance_id=3,
@@ -315,7 +318,9 @@ class SessionTest(absltest.TestCase):
             types_pb2.Reaction(
                 reaction_instance_id=5,
                 action_association=types_pb2.Reaction.ActionAssociation(
-                    action_instance_id=10, stop_associated_action=True
+                    action_instance_id=10,
+                    stop_associated_action=False,
+                    triggered_signal_name='foo_signal',
                 ),
                 condition=types_pb2.Condition(
                     comparison=types_pb2.Comparison(
@@ -324,7 +329,6 @@ class SessionTest(absltest.TestCase):
                         double_value=1.0,
                     )
                 ),
-                response=(types_pb2.Response(start_action_instance_id=30)),
             ),
             types_pb2.Reaction(
                 reaction_instance_id=6,
@@ -388,7 +392,7 @@ class SessionTest(absltest.TestCase):
     with mock.patch.object(
         session, '_request_stream', autospec=True
     ) as mock_request_stream:
-      flag = _reactions.SignalFlag()
+      flag = _reactions.EventFlag()
 
       session.add_reactions(
           _actions.Action(3, 'bar', 'foo', None, []),
@@ -397,7 +401,7 @@ class SessionTest(absltest.TestCase):
                   _reactions.Condition.is_true('some_condition_var'),
                   [
                       _reactions.TriggerCallback(callback),
-                      _reactions.Signal(flag),
+                      _reactions.Event(flag),
                   ],
               ),
               _reactions.Reaction(
@@ -461,6 +465,7 @@ class SessionTest(absltest.TestCase):
           _actions.Action(3, 'bar', 'foo', None, []),
           _reactions.Condition.is_true('some_condition_var'),
           callback,
+          'foo_signal',
       )
 
       mock_request_stream.write.assert_called_with(
@@ -478,6 +483,7 @@ class SessionTest(absltest.TestCase):
                           ),
                           action_association=types_pb2.Reaction.ActionAssociation(
                               action_instance_id=3,
+                              triggered_signal_name='foo_signal',
                           ),
                       ),
                   ],
@@ -550,13 +556,13 @@ class SessionTest(absltest.TestCase):
     session = self._prepare_session_with_response(grpc.StatusCode.OK)
 
     callback = mock.Mock()
-    flag = _reactions.SignalFlag()
+    flag = _reactions.EventFlag()
     reactions = [
         _reactions.Reaction(
             _reactions.Condition.is_true('some_condition_var'),
             [
                 _reactions.StartActionInRealTime(start_action_id=20),
-                _reactions.Signal(flag),
+                _reactions.Event(flag),
             ],
         ),
         _reactions.Reaction(
@@ -1048,11 +1054,11 @@ class SessionTest(absltest.TestCase):
     # Add signals to be flagged for 3 but not for 1 and 2, and a dummy 4.
     session._watcher_signal_flags = collections.defaultdict(list)
     session._watcher_signal_flags[3] = [
-        mock.create_autospec(_reactions.SignalFlag),
-        mock.create_autospec(_reactions.SignalFlag),
+        mock.create_autospec(_reactions.EventFlag),
+        mock.create_autospec(_reactions.EventFlag),
     ]
     session._watcher_signal_flags[4] = [
-        mock.create_autospec(_reactions.SignalFlag)
+        mock.create_autospec(_reactions.EventFlag)
     ]
 
     session._watch_reaction_responses()
