@@ -89,7 +89,6 @@ def intrinsic_sdks_deps_0():
         sha256 = "3046a47488b4e67317cdfa4c53e32b99ea68657ef53b82204aac46e22957ceac",
     )
 
-    # Docker
     maybe(
         http_archive,
         name = "rules_license",
@@ -110,6 +109,21 @@ def intrinsic_sdks_deps_0():
         sha256 = "8c20f74bca25d2d442b327ae26768c02cf3c99e93fad0381f32be9aab1967675",
     )
 
+    maybe(
+        http_archive,
+        name = "aspect_bazel_lib",
+        sha256 = "4c1de11ebabc23a3c976b73a2b2647596f545beda8a61d2c1c034e07f3f8b976",
+        strip_prefix = "bazel-lib-2.0.2",
+        url = "https://github.com/aspect-build/bazel-lib/releases/download/v2.0.2/bazel-lib-v2.0.2.tar.gz",
+    )
+
+    maybe(
+        http_archive,
+        name = "rules_oci",
+        sha256 = "d41d0ba7855f029ad0e5ee35025f882cbe45b0d5d570842c52704f7a47ba8668",
+        strip_prefix = "rules_oci-1.4.3",
+        url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.4.3/rules_oci-v1.4.3.tar.gz",
+    )
     maybe(
         http_archive,
         name = "io_bazel_rules_docker",

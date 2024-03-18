@@ -5,9 +5,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -20,7 +22,6 @@
 #include "google/protobuf/message.h"
 #include "intrinsic/assets/proto/id.pb.h"
 #include "intrinsic/icon/release/status_helpers.h"
-#include "intrinsic/skills/cc/skill_interface.h"
 #include "intrinsic/skills/proto/equipment.pb.h"
 #include "intrinsic/skills/proto/skill_manifest.pb.h"
 #include "intrinsic/skills/proto/skills.pb.h"
@@ -39,62 +40,6 @@ constexpr LazyRE2 kSemverRegex = {
     R"reg(^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$)reg"};
 
 }  // namespace
-
-absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
-    const SkillSignatureInterface& skill_interface,
-    std::optional<absl::string_view> semver_version) {
-  intrinsic_proto::skills::Skill skill;
-  skill.set_skill_name(skill_interface.Name());
-  skill.set_id(skill_interface.Package() + "." + skill_interface.Name());
-  if (semver_version.has_value()) {
-    if (!RE2::FullMatch(*semver_version, *kSemverRegex)) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("semver_version: ", *semver_version,
-                       " is not a valid semver version."));
-    }
-    skill.set_id_version(absl::StrCat(skill.id(), ".", *semver_version));
-  } else {
-    skill.set_id_version(skill.id());
-  }
-  skill.set_doc_string(skill_interface.DocString());
-  const auto equipment = skill_interface.EquipmentRequired();
-  skill.mutable_resource_selectors()->insert(equipment.begin(),
-                                             equipment.end());
-  if (const google::protobuf::Descriptor* descriptor =
-          skill_interface.GetParameterDescriptor();
-      descriptor != nullptr) {
-    *skill.mutable_parameter_description()
-         ->mutable_parameter_descriptor_fileset() =
-        GenFileDescriptorSet(*descriptor);
-    // N.B. The fullname of a proto descriptor does not survive a serialization
-    // roundtrip, but we need it.
-    skill.mutable_parameter_description()->set_parameter_message_full_name(
-        descriptor->full_name());
-  }
-
-  if (const google::protobuf::Descriptor* descriptor =
-          skill_interface.GetReturnValueDescriptor();
-      descriptor != nullptr) {
-    *skill.mutable_return_value_description()->mutable_descriptor_fileset() =
-        GenFileDescriptorSet(*descriptor);
-    // N.B. The fullname of a proto descriptor does not survive a
-    // serialization roundtrip, but we need it.
-    skill.mutable_return_value_description()
-        ->set_return_value_message_full_name(descriptor->full_name());
-  }
-
-  if (std::unique_ptr<google::protobuf::Message> default_params =
-          skill_interface.GetDefaultParameters();
-      default_params != nullptr) {
-    skill.mutable_parameter_description()->mutable_default_value()->PackFrom(
-        *default_params);
-  }
-
-  skill.mutable_execution_options()->set_supports_cancellation(
-      skill_interface.SupportsCancellation());
-
-  return skill;
-}
 
 void StripSourceCodeInfo(
     google::protobuf::FileDescriptorSet& file_descriptor_set) {
@@ -207,29 +152,6 @@ absl::Status AddFileDescriptorSetWithoutSourceCodeInfo(
 
 }  // namespace
 
-absl::Status AddFileDescriptorSetWithoutSourceCodeInfo(
-    const SkillSignatureInterface& skill,
-    const google::protobuf::FileDescriptorSet& parameter_file_descriptor_set,
-    const google::protobuf::FileDescriptorSet& return_value_file_descriptor_set,
-    intrinsic_proto::skills::Skill& skill_proto) {
-  return AddFileDescriptorSetWithoutSourceCodeInfo(
-      skill.GetParameterDescriptor() != nullptr
-          ? absl::WrapUnique<MessageData>(new MessageData{
-                .message_full_name =
-                    skill.GetParameterDescriptor()->full_name(),
-                .file_descriptor_set = parameter_file_descriptor_set,
-            })
-          : nullptr,
-      skill.GetReturnValueDescriptor() != nullptr
-          ? absl::WrapUnique<MessageData>(new MessageData{
-                .message_full_name =
-                    skill.GetReturnValueDescriptor()->full_name(),
-                .file_descriptor_set = return_value_file_descriptor_set,
-            })
-          : nullptr,
-      skill.GetDefaultParameters(), skill_proto);
-}
-
 absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
     const intrinsic_proto::skills::Manifest& manifest,
     const google::protobuf::FileDescriptorSet& parameter_file_descriptor_set,
@@ -249,7 +171,7 @@ absl::StatusOr<intrinsic_proto::skills::Skill> BuildSkillProto(
   } else {
     skill.set_id_version(skill.id());
   }
-  skill.set_doc_string(manifest.documentation().doc_string());
+  skill.set_description(manifest.documentation().description());
   *skill.mutable_resource_selectors() =
       manifest.dependencies().required_equipment();
 

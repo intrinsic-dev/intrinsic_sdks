@@ -18,10 +18,13 @@ load("@com_grail_bazel_toolchain//toolchain:rules.bzl", "llvm_toolchain")
 load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 # Docker
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
+load("@rules_oci//oci:repositories.bzl", "LATEST_CRANE_VERSION", "oci_register_toolchains")
 load(
     "@io_bazel_rules_docker//repositories:repositories.bzl",
     container_repositories = "repositories",
 )
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
 load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
 load(
     "@io_bazel_rules_docker//cc:image.bzl",
@@ -90,12 +93,20 @@ def intrinsic_sdks_deps_1(register_go_toolchain = True):
     )
 
     # Docker
+    rules_oci_dependencies()
+    oci_register_toolchains(
+        name = "oci",
+        crane_version = LATEST_CRANE_VERSION,
+    )
+
+    # Required bazel-lib dependencies
+    aspect_bazel_lib_dependencies()
+
+    # Register bazel-lib toolchains
+    aspect_bazel_lib_register_toolchains()
     container_repositories()
-
     container_deps()
-
     _cc_image_repos()
-
     _py_image_repos()
 
     container_pull(
