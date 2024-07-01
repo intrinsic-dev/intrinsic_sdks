@@ -1,0 +1,34 @@
+{{/*
+Copyright 2023 Intrinsic Innovation LLC
+Intrinsic Proprietary and Confidential
+Provided subject to written agreement between the parties.
+*/ -}}
+
+"""Contains the skill {{.SkillNameSnakeCase}}."""
+
+from absl import logging
+
+from intrinsic.skills.proto import skill_service_pb2
+from intrinsic.skills.python import proto_utils
+from intrinsic.skills.python import skill_interface
+from intrinsic.util.decorators import overrides
+
+{{if .BazelPackage}}from {{strJoin .BazelPackage "."}} {{end}}import {{.SkillNameSnakeCase}}_pb2
+
+
+class {{.SkillNameUpperCamelCase}}(skill_interface.Skill):
+    """Implementation of the {{.SkillNameSnakeCase}} skill."""
+
+    def __init__(self) -> None:
+        pass
+
+    @overrides(skill_interface.Skill)
+    def execute(
+        self,
+        request: skill_interface.ExecuteRequest,
+        context: skill_interface.ExecuteContext
+    ) -> skill_service_pb2.ExecuteResult:
+        logging.info(
+            '"text" parameter passed in skill params: ' + request.params.text
+        )
+        return skill_service_pb2.ExecuteResult()
