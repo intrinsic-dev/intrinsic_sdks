@@ -18,6 +18,7 @@
 #include "absl/types/span.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/descriptor.h"
+#include "google/protobuf/descriptor_database.h"
 #include "intrinsic/skills/cc/skill_interface.h"
 #include "intrinsic/skills/proto/equipment.pb.h"
 #include "intrinsic/skills/proto/skill_service_config.pb.h"
@@ -171,10 +172,6 @@ absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
     const intrinsic_proto::skills::SkillServiceConfig& skill_service_config,
     const google::protobuf::Descriptor* parameter_descriptor,
     const google::protobuf::Descriptor* return_type_descriptor);
-
-// Constructs RuntimeData from the given skill_signature.
-absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
-    const SkillSignatureInterface& skill_signature);
 
 }  // namespace intrinsic::skills::internal
 

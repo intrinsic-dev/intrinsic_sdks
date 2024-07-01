@@ -249,6 +249,341 @@ class BehaviorTreeTest(parameterized.TestCase):
         self, bt.BehaviorTree.create_from_proto(my_proto).proto, my_proto
     )
 
+  def test_validate_accepts_nested_same_node_ids_across_subtrees(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence().set_children(
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+        )
+    )
+    my_bt.tree_id = 'tree_id'
+    my_bt.root.node_id = 1
+    my_bt.root.children[0].behavior_tree.tree_id = 'sub_tree_id'
+    my_bt.root.children[0].node_id = 2
+    my_bt.root.children[0].behavior_tree.root.node_id = 1
+    my_bt.root.children[1].behavior_tree.tree_id = 'other_sub_tree_id'
+    my_bt.root.children[1].node_id = 3
+    my_bt.root.children[1].behavior_tree.root.node_id = 1
+
+    my_bt.validate_id_uniqueness()
+
+  def test_validate_accepts_nested_same_node_ids_across_subtree_conditions(
+      self,
+  ):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Fail(name='root').set_decorators(
+            bt.Decorators(
+                condition=bt.SubTreeCondition(
+                    tree=bt.BehaviorTree(
+                        name='subtree_condition_tree',
+                        root=bt.Fail(name='subtree_condition_root'),
+                    )
+                )
+            )
+        )
+    )
+    my_bt.root.node_id = 1
+    my_bt.root.decorators.condition.tree.root.node_id = 1
+
+    my_bt.validate_id_uniqueness()
+
+  def test_validate_accepts_unset_node_and_tree_ids(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence().set_children(
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+        )
+    )
+
+    my_bt.validate_id_uniqueness()
+
+  def test_validate_accepts_generated_node_and_tree_ids(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence().set_children(
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    )
+                )
+            ),
+        )
+    )
+    my_bt.generate_and_set_unique_id()
+    my_bt.root.generate_and_set_unique_id()
+    my_bt.root.children[0].behavior_tree.generate_and_set_unique_id()
+    my_bt.root.children[0].generate_and_set_unique_id()
+    my_bt.root.children[0].behavior_tree.root.generate_and_set_unique_id()
+    my_bt.root.children[1].behavior_tree.generate_and_set_unique_id()
+    my_bt.root.children[1].generate_and_set_unique_id()
+    my_bt.root.children[1].behavior_tree.root.generate_and_set_unique_id()
+
+    my_bt.validate_id_uniqueness()
+
+  def test_validate_detects_tree_ids(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence().set_children(
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    name='other_tree',
+                    root=bt.Task(
+                        behavior_call.Action(skill_id='ai.intrinsic.skill-0')
+                    ),
+                )
+            )
+        )
+    )
+    my_bt.tree_id = 'tree_id'
+    my_bt.root.children[0].behavior_tree.tree_id = 'tree_id'
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*contains 2 trees with id "tree_id".*my_bt.*other_tree.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
+  def test_validate_detects_node_ids(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence(name='root_node').set_children(
+            bt.Task(
+                name='child_node',
+                action=behavior_call.Action(skill_id='ai.intrinsic.skill-0'),
+            )
+        )
+    )
+    my_bt.root.node_id = 1
+    my_bt.root.children[0].node_id = 1
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*contains 2 nodes with id 1.*root_node.*child_node.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
+  def test_validate_detects_within_subtrees(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.SubTree(
+            behavior_tree=bt.BehaviorTree(
+                root=bt.Sequence(name='subtree_sequence').set_children(
+                    bt.Fail(name='subtree_child0'),
+                    bt.Fail(name='subtree_child1'),
+                )
+            )
+        )
+    )
+    my_bt.root.node_id = 1  # setting this is not a violation
+    my_bt.root.behavior_tree.root.children[0].node_id = 1
+    my_bt.root.behavior_tree.root.children[1].node_id = 1
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*contains 2 nodes with id 1.*subtree_child0.*subtree_child1.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
+  def test_validate_detects_within_subtree_conditions(
+      self,
+  ):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Fail(name='root').set_decorators(
+            bt.Decorators(
+                condition=bt.SubTreeCondition(
+                    tree=bt.BehaviorTree(
+                        name='subtree_condition_tree',
+                        root=bt.Sequence(name='subtree_sequence').set_children(
+                            bt.Fail(name='subtree_child0'),
+                            bt.Fail(name='subtree_child1'),
+                        ),
+                    )
+                )
+            )
+        )
+    )
+    my_bt.root.node_id = 1  # setting this is not a violation
+    my_bt.root.decorators.condition.tree.root.children[0].node_id = 1
+    my_bt.root.decorators.condition.tree.root.children[1].node_id = 1
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*contains 2 nodes with id 1.*subtree_child0.*subtree_child1.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
+  def test_validate_detects_accidental_violation(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    move_home = bt.Fail(name='move_home')
+    pick_up = bt.Fail(name='pick_up')
+    place = bt.Fail(name='place')
+    my_bt.set_root(
+        bt.Sequence(name='subtree_sequence').set_children(
+            move_home, pick_up, move_home, place
+        )
+    )
+    # This changes both move_home nodes as they are the same object
+    move_home.generate_and_set_unique_id()
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*contains 2 nodes with id .*move_home.*move_home.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
+  def test_validates_multiple_node_and_tree_ids(self):
+    my_bt = bt.BehaviorTree('my_bt')
+    my_bt.set_root(
+        bt.Sequence().set_children(
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    name='violates_4_and_2_times',
+                    root=bt.Sequence(
+                        children=[
+                            bt.Fail(name='4x_0'),
+                            bt.Fail(name='4x_1'),
+                            bt.Fail(name='2x_0'),
+                            bt.Fail(name='ok'),
+                            bt.Fail(name='4x_2'),
+                            bt.Fail(name='2x_1'),
+                            bt.Fail(name='4x_3'),
+                            bt.SubTree(
+                                behavior_tree=bt.BehaviorTree(
+                                    name='sub_sub_tree0', root=bt.Fail()
+                                )
+                            ),
+                        ]
+                    ),
+                )
+            ),
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    name='violates_2_times',
+                    root=bt.Sequence(
+                        children=[
+                            bt.Fail(name='2x_0'),
+                            bt.Fail(name='ok'),
+                            bt.Fail(name='2x_1'),
+                            bt.Fail(name='ok'),
+                            bt.SubTree(
+                                behavior_tree=bt.BehaviorTree(
+                                    name='sub_sub_tree1', root=bt.Fail()
+                                )
+                            ),
+                        ]
+                    ),
+                )
+            ),
+            bt.SubTree(
+                behavior_tree=bt.BehaviorTree(
+                    name='consistent',
+                    root=bt.Sequence(
+                        children=[
+                            bt.Fail(name='consistent_0'),
+                            bt.Fail(name='consistent_1'),
+                            bt.Fail(name='consistent_2'),
+                            bt.SubTree(
+                                behavior_tree=bt.BehaviorTree(
+                                    name='sub_sub_tree2', root=bt.Fail()
+                                )
+                            ),
+                        ]
+                    ),
+                )
+            ),
+        )
+    )
+    my_bt.tree_id = 'tree_id'
+    my_bt.root.node_id = 1
+    my_bt.root.children[0].behavior_tree.tree_id = 'tree_id_3x'
+    my_bt.root.children[0].behavior_tree.root.children[
+        7
+    ].behavior_tree.tree_id = 'tree_id_3x'
+    my_bt.root.children[1].behavior_tree.tree_id = 'tree_id_2x'
+    my_bt.root.children[1].behavior_tree.root.children[
+        4
+    ].behavior_tree.tree_id = 'tree_id_3x'
+    my_bt.root.children[2].behavior_tree.tree_id = 'tree_id_unique'
+    my_bt.root.children[2].behavior_tree.root.children[
+        3
+    ].behavior_tree.tree_id = 'tree_id_2x'
+
+    my_bt.root.children[0].node_id = 10
+    my_bt.root.children[0].behavior_tree.root.node_id = 1
+    my_bt.root.children[0].behavior_tree.root.children[0].node_id = 44
+    my_bt.root.children[0].behavior_tree.root.children[1].node_id = 44
+    my_bt.root.children[0].behavior_tree.root.children[2].node_id = 22
+    my_bt.root.children[0].behavior_tree.root.children[3].node_id = 13
+    my_bt.root.children[0].behavior_tree.root.children[4].node_id = 44
+    my_bt.root.children[0].behavior_tree.root.children[5].node_id = 22
+    my_bt.root.children[0].behavior_tree.root.children[6].node_id = 44
+    my_bt.root.children[0].behavior_tree.root.children[7].node_id = 17
+    my_bt.root.children[1].node_id = 11
+    my_bt.root.children[1].behavior_tree.root.node_id = 1
+    my_bt.root.children[1].behavior_tree.root.children[0].node_id = 44
+    my_bt.root.children[1].behavior_tree.root.children[1].node_id = 11
+    my_bt.root.children[1].behavior_tree.root.children[2].node_id = 44
+    my_bt.root.children[1].behavior_tree.root.children[3].node_id = 13
+    my_bt.root.children[1].behavior_tree.root.children[4].node_id = 14
+    my_bt.root.children[2].node_id = 12
+    my_bt.root.children[2].behavior_tree.root.node_id = 1
+    my_bt.root.children[2].behavior_tree.root.children[0].node_id = 22
+    my_bt.root.children[2].behavior_tree.root.children[1].node_id = 23
+    my_bt.root.children[2].behavior_tree.root.children[2].node_id = 44
+    my_bt.root.children[2].behavior_tree.root.children[3].node_id = 45
+
+    with self.assertRaisesRegex(
+        solutions_errors.InvalidArgumentError,
+        """^.*violates uniqueness.*
+.*violates_4_and_2_times.*contains 4 nodes with id 44.*4x_0.*4x_1.*4x_2.*4x_3.*
+.*violates_4_and_2_times.*contains 2 nodes with id 22.*2x_0.*2x_1.*
+.*violates_2_times.*contains 2 nodes with id 44.*2x_0.*2x_1.*
+.*contains 3 trees with id "tree_id_3x".*violates_4_and_2_times.*sub_sub_tree0.*sub_sub_tree1.*
+.*contains 2 trees with id "tree_id_2x".*violates_2_times.*sub_sub_tree2.*$""",
+    ):
+      my_bt.validate_id_uniqueness()
+
   def test_dot_graph_empty_instance(self):
     """Tests if an empty behavior tree converts to a dot representation ok."""
     my_bt = bt.BehaviorTree()
@@ -1002,7 +1337,7 @@ class BehaviorTreeSubTreeTest(absltest.TestCase):
     )
     self.assertEqual(
         str(node),
-        'SubTree(BehaviorTree(name="some_sub_tree",'
+        'SubTree(behavior_tree=BehaviorTree(name="some_sub_tree",'
         ' root=Task(action=behavior_call.Action(skill_id="some_skill"))))',
     )
 
@@ -1155,10 +1490,15 @@ class BehaviorTreeFailTest(absltest.TestCase):
 
   def test_str_conversion(self):
     """Tests if conversion to string works."""
-    node = bt.Fail('')
+    node = bt.Fail()
     self.assertEqual(str(node), 'Fail()')
     node = bt.Fail('some_failure_message')
-    self.assertEqual(str(node), 'Fail(some_failure_message)')
+    self.assertEqual(str(node), 'Fail(failure_message="some_failure_message")')
+    node = bt.Fail(name='my_fail', failure_message='some_failure_message')
+    self.assertEqual(
+        str(node),
+        'Fail(name="my_fail", failure_message="some_failure_message")',
+    )
 
   def test_to_proto_and_from_proto(self):
     """Tests if conversion to and from a proto representation works."""
@@ -2127,14 +2467,14 @@ class BehaviorTreeLoopTest(absltest.TestCase):
   def test_str_conversion(self):
     """Tests if conversion to string works."""
     node = bt.Loop()
-    self.assertEqual(str(node), 'Loop (None)')
+    self.assertEqual(str(node), 'Loop(do_child=None)')
     node.max_times = 2
     node.set_do_child(behavior_call.Action(skill_id='skill_0'))
     node.set_while_condition(bt.Blackboard('foo'))
     self.assertEqual(
         str(node),
-        'Loop Blackboard(foo)'
-        ' (max_times=2, Task(action=behavior_call.Action(skill_id="skill_0")))',
+        'Loop(while_condition=Blackboard(foo), max_times=2, '
+        'do_child=Task(action=behavior_call.Action(skill_id="skill_0")))',
     )
 
   def test_to_proto_empty_child(self):
@@ -2505,21 +2845,21 @@ class BehaviorTreeBranchTest(absltest.TestCase):
   def test_str_conversion(self):
     """Tests if conversion to string works."""
     node = bt.Branch()
-    self.assertEqual(str(node), 'Branch')
+    self.assertEqual(str(node), 'Branch()')
     node.set_then_child(behavior_call.Action(skill_id='skill_0'))
     node.set_if_condition(bt.Blackboard('foo'))
     self.assertEqual(
         str(node),
-        'Branch Blackboard(foo) then'
-        ' (Task(action=behavior_call.Action(skill_id="skill_0")))',
+        'Branch(if_condition=Blackboard(foo), then_child='
+        'Task(action=behavior_call.Action(skill_id="skill_0")), )',
     )
 
     node.set_else_child(behavior_call.Action(skill_id='skill_1'))
     self.assertEqual(
         str(node),
-        'Branch Blackboard(foo) then'
-        ' (Task(action=behavior_call.Action(skill_id="skill_0"))) else'
-        ' (Task(action=behavior_call.Action(skill_id="skill_1")))',
+        'Branch(if_condition=Blackboard(foo), then_child='
+        'Task(action=behavior_call.Action(skill_id="skill_0")), else_child='
+        'Task(action=behavior_call.Action(skill_id="skill_1")))',
     )
 
   def test_to_proto_no_then_or_else(self):

@@ -18,7 +18,6 @@
 #include "grpcpp/channel.h"
 #include "grpcpp/grpcpp.h"
 #include "grpcpp/support/channel_arguments.h"
-#include "intrinsic/icon/release/status_helpers.h"
 #include "intrinsic/skills/cc/client_common.h"
 #include "intrinsic/skills/internal/proto/skill_registry_internal.grpc.pb.h"
 #include "intrinsic/skills/internal/proto/skill_registry_internal.pb.h"
@@ -28,6 +27,8 @@
 #include "intrinsic/skills/proto/skill_registry_config.pb.h"
 #include "intrinsic/skills/proto/skills.pb.h"
 #include "intrinsic/util/grpc/grpc.h"
+#include "intrinsic/util/status/annotate.h"
+#include "intrinsic/util/status/status_macros.h"
 
 namespace intrinsic {
 namespace skills {
@@ -58,7 +59,7 @@ absl::StatusOr<std::unique_ptr<SkillRegistryClient>> CreateSkillRegistryClient(
         }]
       })");
 
-  INTRINSIC_ASSIGN_OR_RETURN(
+  INTR_ASSIGN_OR_RETURN(
       std::shared_ptr<grpc::Channel> channel,
       CreateClientChannel(grpc_address, absl::Now() + timeout, channel_args));
 
@@ -103,7 +104,7 @@ SkillRegistryClient::GetSkillById(absl::string_view skill_id) const {
   intrinsic_proto::skills::GetSkillRequest req;
   req.set_id(std::string(skill_id));
   intrinsic_proto::skills::GetSkillResponse resp;
-  INTRINSIC_RETURN_IF_ERROR(stub_->GetSkill(&context, req, &resp));
+  INTR_RETURN_IF_ERROR(stub_->GetSkill(&context, req, &resp));
   return resp.skill();
 }
 

@@ -16,21 +16,17 @@
 #include "absl/types/span.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/descriptor.h"
-#include "google/protobuf/repeated_ptr_field.h"
+#include "google/protobuf/descriptor_database.h"
 #include "intrinsic/assets/id_utils.h"
-#include "intrinsic/icon/release/status_helpers.h"
 #include "intrinsic/skills/cc/skill_interface.h"
 #include "intrinsic/skills/proto/equipment.pb.h"
 #include "intrinsic/skills/proto/skill_service_config.pb.h"
 #include "intrinsic/skills/proto/skills.pb.h"
 #include "intrinsic/util/proto_time.h"
+#include "intrinsic/util/status/status_macros.h"
 
 namespace intrinsic::skills::internal {
-namespace {
-
-using ::intrinsic::assets::IdFrom;
-
-}  // namespace
+namespace {}  // namespace
 
 ParameterData::ParameterData(const google::protobuf::Descriptor& descriptor,
                              const google::protobuf::Any& default_value)
@@ -99,26 +95,6 @@ absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
                         .resource_selectors()
                         .end()}),
       skill_service_config.skill_description().id());
-}
-
-absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
-    const SkillSignatureInterface& skill_signature) {
-  INTRINSIC_ASSIGN_OR_RETURN(std::string id, IdFrom(skill_signature.Package(),
-                                                    skill_signature.Name()));
-  return SkillRuntimeData(
-      skill_signature.GetDefaultParameters() == nullptr
-          ? ParameterData(*skill_signature.GetParameterDescriptor())
-          : ParameterData(*skill_signature.GetParameterDescriptor(),
-                          [&skill_signature]() {
-                            google::protobuf::Any default_value;
-                            default_value.PackFrom(
-                                *skill_signature.GetDefaultParameters());
-                            return default_value;
-                          }()),
-      ReturnTypeData(skill_signature.GetReturnValueDescriptor()),
-      ExecutionOptions(skill_signature.SupportsCancellation(),
-                       skill_signature.GetReadyForCancellationTimeout()),
-      ResourceData(skill_signature.EquipmentRequired()), id);
 }
 
 }  // namespace intrinsic::skills::internal

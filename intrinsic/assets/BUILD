@@ -13,7 +13,8 @@ cc_library(
     hdrs = ["id_utils.h"],
     deps = [
         "//intrinsic/assets/proto:id_cc_proto",
-        "//intrinsic/icon/release:status_helpers",
+        "//intrinsic/util/status:annotate",
+        "//intrinsic/util/status:status_macros",
         "@com_github_google_re2//:re2",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -36,4 +37,9 @@ go_library(
         "//intrinsic/assets/proto:id_go_proto",
         "@org_golang_x_exp//slices",
     ],
+)
+
+go_library(
+    name = "metadatafieldlimits",
+    srcs = ["metadata_field_limits.go"],
 )

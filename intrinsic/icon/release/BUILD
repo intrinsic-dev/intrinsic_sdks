@@ -11,21 +11,6 @@ cc_library(
 )
 
 cc_library(
-    name = "status_helpers",
-    srcs = ["status_helpers.cc"],
-    hdrs = ["status_helpers.h"],
-    deps = [
-        "@com_google_absl//absl/base:log_severity",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:cord",
-        "@com_google_googleapis//google/rpc:status_cc_proto",
-        "@com_google_protobuf//:protobuf",
-    ],
-)
-
-cc_library(
     name = "file_helpers",
     hdrs = ["file_helpers.h"],
     deps = [
@@ -48,11 +33,11 @@ cc_binary(
     name = "reset_simulation",
     srcs = ["reset_simulation.cc"],
     deps = [
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/icon/release/portable:init_xfa_absl",
         "//intrinsic/simulation/service/proto:simulation_service_cc_grpc_proto",
         "//intrinsic/simulation/service/proto:simulation_service_cc_proto",
         "//intrinsic/util/grpc",
+        "//intrinsic/util/status:status_macros",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log:check",
