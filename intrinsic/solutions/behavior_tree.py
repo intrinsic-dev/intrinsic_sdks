@@ -547,12 +547,10 @@ class Node(abc.ABC):
 
   Attributes:
     proto: The proto representation of the node.
-    name: Optional name of the node.
     node_type: A string label of the node type.
     decorators: A list of decorators for the current node.
     breakpoint: Optional type of breakpoint configured for this node.
     execution_mode: Optional execution mode for this node.
-    node_id: A unique id for this node.
   """
 
   def __repr__(self) -> str:
@@ -560,92 +558,51 @@ class Node(abc.ABC):
     return f'{type(self).__name__}()'
 
   @classmethod
+  @abc.abstractmethod
   def create_from_proto(
       cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Node':
     """Instantiates a Node instance from a proto."""
-    if cls != Node:
-      raise TypeError('create_from_proto can only be called on the Node class')
     node_type = proto_object.WhichOneof('node_type')
-    # pylint:disable=protected-access
-    # Intentionally using knowledge of subclasses in this parent class, so that
-    # it is possible to provide a generic function to create the appropriate
-    # subclass from a Node proto.
     if node_type == 'task':
-      created_node = Task._create_from_proto(proto_object.task)
+      return Task.create_from_proto(proto_object)
     elif node_type == 'sub_tree':
-      created_node = SubTree._create_from_proto(proto_object.sub_tree)
+      return SubTree.create_from_proto(proto_object)
     elif node_type == 'fail':
-      created_node = Fail._create_from_proto(proto_object.fail)
+      return Fail.create_from_proto(proto_object)
     elif node_type == 'sequence':
-      created_node = Sequence._create_from_proto(proto_object.sequence)
+      return Sequence.create_from_proto(proto_object)
     elif node_type == 'parallel':
-      created_node = Parallel._create_from_proto(proto_object.parallel)
+      return Parallel.create_from_proto(proto_object)
     elif node_type == 'selector':
-      created_node = Selector._create_from_proto(proto_object.selector)
+      return Selector.create_from_proto(proto_object)
     elif node_type == 'retry':
-      created_node = Retry._create_from_proto(proto_object.retry)
+      return Retry.create_from_proto(proto_object)
     elif node_type == 'fallback':
-      created_node = Fallback._create_from_proto(proto_object.fallback)
+      return Fallback.create_from_proto(proto_object)
     elif node_type == 'loop':
-      created_node = Loop._create_from_proto(proto_object.loop)
+      return Loop.create_from_proto(proto_object)
     elif node_type == 'branch':
-      created_node = Branch._create_from_proto(proto_object.branch)
-    elif node_type == 'data':
-      created_node = Data._create_from_proto(proto_object.data)
+      return Branch.create_from_proto(proto_object)
     else:
       raise TypeError('Unsupported proto node type', node_type)
-    # pylint:enable=protected-access
-    if proto_object.HasField('decorators'):
-      created_node.set_decorators(
-          Decorators.create_from_proto(proto_object.decorators)
-      )
-    if proto_object.HasField('name'):
-      created_node.name = proto_object.name
-    if proto_object.HasField('id') and proto_object.id != 0:
-      created_node.node_id = proto_object.id
-    return created_node
 
   @property
   @abc.abstractmethod
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
     """Return proto representation of a Node object."""
     proto_message = behavior_tree_pb2.BehaviorTree.Node()
-    if self.name is not None:
-      proto_message.name = self.name
-    if self.node_id is not None:
-      proto_message.id = self.node_id
-    if self.decorators is not None:
+    if hasattr(self, '_name') and self._name:
+      proto_message.name = self._name
+    if self.decorators:
       proto_message.decorators.CopyFrom(self.decorators.proto)
 
     return proto_message
 
-  def generate_and_set_unique_id(self) -> int:
-    """Generates a new random id and sets it for this node."""
-    if self.node_id is not None:
-      print(
-          'Warning: Creating a new unique id, but this node already had an id'
-          f' ({self.node_id})'
-      )
-    uid = uuid.uuid4()
-    uid_128 = uid.int
-    # The proto only specifies uint32, so a 128-bit UUID wouldn't fit. XOR
-    # this together to retain sufficient randomness to prevent collisions.
-    # Node Ids must be unique only within the behavior tree that is being
-    # created.
-    uid_32 = (
-        (uid_128 & 0xFFFFFFFF)
-        ^ (uid_128 & (0xFFFFFFFF << 32)) >> 32
-        ^ (uid_128 & (0xFFFFFFFF << 64)) >> 64
-        ^ (uid_128 & (0xFFFFFFFF << 96)) >> 96
-    )
-    self.node_id = uid_32
-    return self.node_id
-
   @property
   @abc.abstractmethod
   def node_type(self) -> str:
-    ...
+    raise NotImplementedError('This method should be overridden.')
 
   @abc.abstractmethod
   def dot_graph(
@@ -686,26 +643,6 @@ class Node(abc.ABC):
   def show(self) -> None:
     return ipython.display_if_ipython(self.dot_graph()[0])
 
-  @property
-  @abc.abstractmethod
-  def name(self) -> Optional[str]:
-    ...
-
-  @name.setter
-  @abc.abstractmethod
-  def name(self, value: str):
-    ...
-
-  @property
-  @abc.abstractmethod
-  def node_id(self) -> Optional[int]:
-    ...
-
-  @node_id.setter
-  @abc.abstractmethod
-  def node_id(self, value: int):
-    ...
-
   @abc.abstractmethod
   def set_decorators(self, decorators: Optional['Decorators']) -> 'Node':
     ...
@@ -719,7 +656,7 @@ class Node(abc.ABC):
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
   ):
-    ...
+    raise NotImplementedError('This method should be overridden.')
 
   @property
   def breakpoint(self) -> 'BreakpointType':
@@ -795,36 +732,28 @@ class Condition(abc.ABC):
   """
 
   @classmethod
+  @abc.abstractmethod
   def create_from_proto(
       cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'Condition':
     """Instantiates a Condition instance from a proto."""
-    if cls != Condition:
-      raise TypeError(
-          'create_from_proto can only be called on the Condition class'
-      )
     condition_type = proto_object.WhichOneof('condition_type')
-    # pylint:disable=protected-access
-    # Intentionally using knowledge of subclasses in this parent class, so that
-    # it is possible to provide a generic function to create the appropriate
-    # subclass from a Condition proto.
     if condition_type == 'behavior_tree':
-      return SubTreeCondition._create_from_proto(proto_object.behavior_tree)
+      return SubTreeCondition.create_from_proto(proto_object)
     elif condition_type == 'blackboard':
-      return Blackboard._create_from_proto(proto_object.blackboard)
+      return Blackboard.create_from_proto(proto_object)
     elif condition_type == 'domain_formula':
       raise NotImplementedError(
           'DomainFormular conditions are not yet supported.'
       )
     elif condition_type == 'all_of':
-      return AllOf._create_from_proto(proto_object.all_of)
+      return AllOf.create_from_proto(proto_object)
     elif condition_type == 'any_of':
-      return AnyOf._create_from_proto(proto_object.any_of)
+      return AnyOf.create_from_proto(proto_object)
     elif condition_type == 'not':
-      return Not._create_from_proto(getattr(proto_object, 'not'))
+      return Not.create_from_proto(proto_object)
     else:
       raise TypeError('Unsupported proto condition type', condition_type)
-    # pylint:enable=protected-access
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
@@ -833,18 +762,18 @@ class Condition(abc.ABC):
   @property
   @abc.abstractmethod
   def condition_type(self) -> str:
-    ...
+    raise NotImplementedError('This method should be overridden.')
 
   @property
   @abc.abstractmethod
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Condition:
-    ...
+    raise NotImplementedError('This method should be overridden.')
 
   @abc.abstractmethod
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
   ) -> str:
-    ...
+    raise NotImplementedError('This method should be overridden.')
 
 
 class SubTreeCondition(Condition):
@@ -888,10 +817,15 @@ class SubTreeCondition(Condition):
     return 'sub_tree'
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'SubTreeCondition':
-    return cls(BehaviorTree.create_from_proto(proto_object))
+    if not proto_object.HasField('behavior_tree'):
+      raise ValueError(
+          "Received invalid condition proto - missing 'behavior_tree' field."
+      )
+
+    return cls(BehaviorTree.create_from_proto(proto_object.behavior_tree))
 
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
@@ -932,11 +866,13 @@ class Blackboard(Condition):
     return 'blackboard'
 
   @classmethod
-  def _create_from_proto(
-      cls,
-      proto_object: behavior_tree_pb2.BehaviorTree.Condition.BlackboardExpression,
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'Blackboard':
-    return cls(proto_object.cel_expression)
+    if not proto_object.HasField('blackboard'):
+      raise ValueError('Received invalid condition proto.')
+
+    return cls(proto_object.blackboard.cel_expression)
 
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
@@ -1017,13 +953,15 @@ class AllOf(CompoundCondition):
     return 'AllOf'
 
   @classmethod
-  def _create_from_proto(
-      cls,
-      proto_object: behavior_tree_pb2.BehaviorTree.Condition.LogicalCompound,
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'AllOf':
+    if not proto_object.HasField('all_of'):
+      raise ValueError('Received invalid condition proto.')
+
     condition = cls()
-    for condition_proto in proto_object.conditions:
-      condition.conditions.append(Condition.create_from_proto(condition_proto))
+    for condition_proto in proto_object.all_of.conditions:
+      condition.conditions.append(super().create_from_proto(condition_proto))
     return condition
 
 
@@ -1054,13 +992,15 @@ class AnyOf(CompoundCondition):
     return 'AnyOf'
 
   @classmethod
-  def _create_from_proto(
-      cls,
-      proto_object: behavior_tree_pb2.BehaviorTree.Condition.LogicalCompound,
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'AnyOf':
+    if not proto_object.HasField('any_of'):
+      raise ValueError('Received invalid condition proto.')
+
     condition = cls()
-    for condition_proto in proto_object.conditions:
-      condition.conditions.append(Condition.create_from_proto(condition_proto))
+    for condition_proto in proto_object.any_of.conditions:
+      condition.conditions.append(super().create_from_proto(condition_proto))
     return condition
 
 
@@ -1094,10 +1034,13 @@ class Not(Condition):
     return 'not'
 
   @classmethod
-  def _create_from_proto(
+  def create_from_proto(
       cls, proto_object: behavior_tree_pb2.BehaviorTree.Condition
   ) -> 'Not':
-    return cls(Condition.create_from_proto(proto_object))
+    if not proto_object.HasField('not'):
+      raise ValueError('Received invalid condition proto.')
+
+    return cls(super().create_from_proto(getattr(proto_object, 'not')))
 
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
@@ -1128,8 +1071,6 @@ class Task(Node):
   _action: Optional[actions.ActionBase]
   _behavior_call_proto: Optional[behavior_call_pb2.BehaviorCall]
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
@@ -1148,31 +1089,11 @@ class Task(Node):
           f'Unknown action specification: {action}'
       )
     self._name = name
-    self._node_id = None
     super().__init__()
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
-    return f'{type(self).__name__}({name_snippet}action=behavior_call.Action(skill_id="{self._behavior_call_proto.skill_id}"))'
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
+    return f'{type(self).__name__}({self._behavior_call_proto.skill_id})'
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1200,10 +1121,15 @@ class Task(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.TaskNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Task':
-    return cls(proto_object.call_behavior)
+    task = cls(proto_object.task.call_behavior)
+    if proto_object.HasField('decorators'):
+      task.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      task._name = proto_object.name
+    return task
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
       self, node_id_suffix: str = ''
@@ -1255,37 +1181,34 @@ class SubTree(Node):
   This node is usually used to group components into a subtree.
 
   Attributes:
-    behavior_tree: The subtree, a BehaviorTree object.
-    name: The name of the subtree node.
+    behavior_tree: The subtree.
+    name: The name of the subtree, required if and only if passing a root node
+      as the behavior tree.
     proto: The proto representation of the node.
     node_type: A string label of the node type.
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
       behavior_tree: Optional[Union['Node', 'BehaviorTree']] = None,
       name: Optional[str] = None,
   ):
-    """Creates a SubTree node.
-
-    Args:
-      behavior_tree: behavior tree or root node of a tree for this subtree. If
-        passing a root node you must also provide the name argument.
-      name: name of the behavior tree, if behavior_tree is a node, i.e., a root
-        node of a tree; otherwise, the name of this node.
-    """
     self.behavior_tree: Optional['BehaviorTree'] = None
     self._decorators = None
-    self._name = None
-    self._node_id = None
     if behavior_tree is not None:
-      self.set_behavior_tree(behavior_tree, name)
-    else:
-      self._name = name
+      if isinstance(behavior_tree, BehaviorTree):
+        self.behavior_tree = behavior_tree
+        self._name = name
+      elif isinstance(behavior_tree, Node):
+        if name is None:
+          raise ValueError(
+              'Requires to set name when setting from a Node ' + '(root node)'
+          )
+        self.behavior_tree = BehaviorTree(name=name, root=behavior_tree)
+      else:
+        raise TypeError('Given behavior_tree is not a BehaviorTree.')
     super().__init__()
 
   def set_behavior_tree(
@@ -1296,10 +1219,10 @@ class SubTree(Node):
     """Sets the subtree's behavior tree.
 
     Args:
-      behavior_tree: behavior tree or root node of a tree for this subtree. If
+      behavior_tree: behavior tree or root node of tree for this subtree. If
         passing a root node you must also provide the name argument.
-      name: name of the behavior tree, if behavior_tree is a node, i.e., a root
-        node of a tree; otherwise, the name of this node.
+      name: name of behavior tree, used if and only if behavior_tree is given a
+        node, i.e., a root node of a tree.
 
     Returns:
       self for chaining.
@@ -1310,7 +1233,7 @@ class SubTree(Node):
     elif isinstance(behavior_tree, Node):
       if name is None:
         raise ValueError(
-            'You must give a name when passing a root node for a tree.'
+            'You must give a name when passing a root node for a tree'
         )
       self.behavior_tree = BehaviorTree(name=name, root=behavior_tree)
     else:
@@ -1323,22 +1246,6 @@ class SubTree(Node):
       return f'{type(self).__name__}()'
     else:
       return f'{type(self).__name__}({str(self.behavior_tree)})'
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1364,10 +1271,19 @@ class SubTree(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.SubtreeNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'SubTree':
-    return cls(behavior_tree=BehaviorTree.create_from_proto(proto_object.tree))
+    subtree = cls(
+        behavior_tree=BehaviorTree.create_from_proto(proto_object.sub_tree.tree)
+    )
+    if proto_object.HasField('decorators'):
+      subtree.set_decorators(
+          Decorators.create_from_proto(proto_object.decorators)
+      )
+    if proto_object.HasField('name'):
+      subtree._name = proto_object.name
+    return subtree
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
       self, node_id_suffix: str = ''
@@ -1435,14 +1351,11 @@ class Fail(Node):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(self, failure_message: str = '', name: Optional[str] = None):
     self._decorators = None
     self.failure_message: str = failure_message
     self._name = name
-    self._node_id = None
     super().__init__()
 
   def __repr__(self) -> str:
@@ -1454,22 +1367,6 @@ class Fail(Node):
     proto_object = super().proto
     proto_object.fail.failure_message = self.failure_message
     return proto_object
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def node_type(self) -> str:
@@ -1484,10 +1381,15 @@ class Fail(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.FailNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Fail':
-    return cls(proto_object.failure_message)
+    fail = cls(proto_object.fail.failure_message)
+    if proto_object.HasField('decorators'):
+      fail.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      fail._name = proto_object.name
+    return fail
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
       self, node_id_suffix: str = ''
@@ -1523,7 +1425,10 @@ class NodeWithChildren(Node):
 
   def __init__(
       self,
-      children: Optional[SequenceType[Union['Node', actions.ActionBase]]],
+      children: Optional[
+          SequenceType[Union['Node', actions.ActionBase]]
+      ] = None,
+      name: Optional[str] = None,
   ):
     if not children:
       self.children = []
@@ -1531,6 +1436,7 @@ class NodeWithChildren(Node):
       self.children: List['Node'] = [  # pytype: disable=annotation-type-mismatch  # always-use-return-annotations
           _transform_to_optional_node(x) for x in children
       ]
+    self._name = name
     super().__init__()
 
   def set_children(self, *children: 'Node') -> 'Node':
@@ -1543,11 +1449,9 @@ class NodeWithChildren(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
-    representation = f'{type(self).__name__}({name_snippet}children=['
-    representation += ', '.join(map(str, self.children))
+    representation = f'{type(self).__name__}([ '
+    for child in self.children:
+      representation += f'{str(child)} '
     representation += '])'
     return representation
 
@@ -1555,20 +1459,20 @@ class NodeWithChildren(Node):
       self, node_id_suffix: str = ''
   ) -> Tuple[graphviz.Digraph, str]:
     dot_graph, node_name = super().dot_graph(
-        node_id_suffix=node_id_suffix, name=self.name
+        node_id_suffix=node_id_suffix, name=self._name
     )
     _dot_append_children(dot_graph, node_name, self.children, node_id_suffix, 0)
     box_dot_graph = _dot_wrap_in_box(
         child_graph=dot_graph,
-        name=(self.name or '') + node_id_suffix,
-        label=self.name or '',
+        name=(self._name or '') + node_id_suffix,
+        label=self._name or '',
     )
     return box_dot_graph, node_name
 
   def print_python_code(
       self, identifiers: List[str], skills: providers.SkillProvider
   ) -> str:
-    name = self.name if self.name else self.node_type
+    name = self._name if self._name else self.node_type
     identifier = _generate_unique_identifier(name, identifiers)
     children_identifier = [
         c.print_python_code(identifiers, skills) for c in self.children
@@ -1603,8 +1507,6 @@ class Sequence(NodeWithChildren):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
@@ -1613,10 +1515,8 @@ class Sequence(NodeWithChildren):
       ] = None,
       name: Optional[str] = None,
   ):
-    super().__init__(children=children)
+    super().__init__(children=children, name=name)
     self._decorators = None
-    self._name = name
-    self._node_id = None
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1634,22 +1534,6 @@ class Sequence(NodeWithChildren):
   def node_type(self) -> str:
     return 'Sequence'
 
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
-
   def set_decorators(self, decorators: Optional['Decorators']) -> 'Node':
     self._decorators = decorators
     return self
@@ -1659,12 +1543,16 @@ class Sequence(NodeWithChildren):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.SequenceNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Sequence':
     node = cls()
-    for child_node_proto in proto_object.children:
-      node.children.append(Node.create_from_proto(child_node_proto))
+    for child_node_proto in proto_object.sequence.children:
+      node.children.append(super().create_from_proto(child_node_proto))
+    if proto_object.HasField('decorators'):
+      node.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      node._name = proto_object.name
     return node
 
 
@@ -1684,8 +1572,6 @@ class Parallel(NodeWithChildren):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   class FailureBehavior(enum.IntEnum):
     """Specifies how a parallel node should fail.
@@ -1709,10 +1595,8 @@ class Parallel(NodeWithChildren):
       failure_behavior: FailureBehavior = FailureBehavior.DEFAULT,
       name: Optional[str] = None,
   ):
-    super().__init__(children)
+    super().__init__(children, name)
     self._decorators = None
-    self._name = name
-    self._node_id = None
     self.failure_behavior = failure_behavior
 
   @property
@@ -1733,22 +1617,6 @@ class Parallel(NodeWithChildren):
   def node_type(self) -> str:
     return 'Parallel'
 
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
-
   def set_decorators(self, decorators: Optional['Decorators']) -> 'Node':
     self._decorators = decorators
     return self
@@ -1758,14 +1626,21 @@ class Parallel(NodeWithChildren):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.ParallelNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Parallel':
     node = cls(
-        failure_behavior=cls.FailureBehavior(proto_object.failure_behavior),
+        failure_behavior=cls.FailureBehavior(
+            proto_object.parallel.failure_behavior
+        ),
+        name=(proto_object.name if proto_object.HasField('name') else None),
     )
-    for child_node_proto in proto_object.children:
-      node.children.append(Node.create_from_proto(child_node_proto))
+    for child_node_proto in proto_object.parallel.children:
+      node.children.append(super().create_from_proto(child_node_proto))
+
+    if proto_object.HasField('decorators'):
+      node.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+
     return node
 
 
@@ -1785,8 +1660,6 @@ class Selector(NodeWithChildren):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
@@ -1795,10 +1668,8 @@ class Selector(NodeWithChildren):
       ] = None,
       name: Optional[str] = None,
   ):
-    super().__init__(children=children)
+    super().__init__(children=children, name=name)
     self._decorators = None
-    self._name = name
-    self._node_id = None
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1816,22 +1687,6 @@ class Selector(NodeWithChildren):
   def node_type(self) -> str:
     return 'Selector'
 
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
-
   def set_decorators(self, decorators: Optional['Decorators']) -> 'Node':
     self._decorators = decorators
     return self
@@ -1841,12 +1696,16 @@ class Selector(NodeWithChildren):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.SelectorNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Selector':
     node = cls()
-    for child_node_proto in proto_object.children:
-      node.children.append(Node.create_from_proto(child_node_proto))
+    for child_node_proto in proto_object.selector.children:
+      node.children.append(super().create_from_proto(child_node_proto))
+    if proto_object.HasField('decorators'):
+      node.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      node._name = proto_object.name
     return node
 
 
@@ -1870,8 +1729,6 @@ class Retry(Node):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
   child: Optional['Node']
   recovery: Optional['Node']
   max_tries: int
@@ -1889,7 +1746,6 @@ class Retry(Node):
     self.recovery = _transform_to_optional_node(recovery)
     self.max_tries = max_tries
     self._name = name
-    self._node_id = None
     self._retry_counter_key = retry_counter_key or 'retry_counter_' + str(
         uuid.uuid4()
     ).replace('-', '_')
@@ -1907,30 +1763,10 @@ class Retry(Node):
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
-    name_snippet = ''
-    if self.name is not None:
-      name_snippet = f'name="{self.name}", '
     recovery_str = f', recovery={str(self.recovery)}'
     return (
-        f'{type(self).__name__}({name_snippet}max_tries={self.max_tries},'
-        f' child={str(self.child)}{recovery_str})'
+        f'{type(self).__name__} {self.max_tries}(child={str(self.child)}{recovery_str})'
     )
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -1965,16 +1801,22 @@ class Retry(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.RetryNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Retry':
     retry = cls(
-        max_tries=proto_object.max_tries,
-        child=Node.create_from_proto(proto_object.child),
+        max_tries=proto_object.retry.max_tries,
+        child=super().create_from_proto(proto_object.retry.child),
     )
-    if proto_object.HasField('recovery'):
-      retry.recovery = Node.create_from_proto(proto_object.recovery)
-    retry._retry_counter_key = proto_object.retry_counter_blackboard_key
+    if proto_object.HasField('decorators'):
+      retry.set_decorators(
+          Decorators.create_from_proto(proto_object.decorators)
+      )
+    if proto_object.HasField('name'):
+      retry._name = proto_object.name
+    if proto_object.retry.HasField('recovery'):
+      retry.recovery = super().create_from_proto(proto_object.retry.recovery)
+    retry._retry_counter_key = proto_object.retry.retry_counter_blackboard_key
     return retry
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
@@ -2040,8 +1882,6 @@ class Fallback(NodeWithChildren):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
@@ -2050,10 +1890,8 @@ class Fallback(NodeWithChildren):
       ] = None,
       name: Optional[str] = None,
   ):
-    super().__init__(children=children)
+    super().__init__(children=children, name=name)
     self._decorators = None
-    self._name = name
-    self._node_id = None
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -2071,22 +1909,6 @@ class Fallback(NodeWithChildren):
   def node_type(self) -> str:
     return 'Fallback'
 
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
-
   def set_decorators(self, decorators: Optional['Decorators']) -> 'Node':
     self._decorators = decorators
     return self
@@ -2096,12 +1918,16 @@ class Fallback(NodeWithChildren):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.FallbackNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Fallback':
     node = cls()
-    for child_node_proto in proto_object.children:
-      node.children.append(Node.create_from_proto(child_node_proto))
+    for child_node_proto in proto_object.fallback.children:
+      node.children.append(super().create_from_proto(child_node_proto))
+    if proto_object.HasField('decorators'):
+      node.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      node._name = proto_object.name
     return node
 
 
@@ -2142,8 +1968,6 @@ class Loop(Node):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
   _for_each_value_key: Optional[str]
   _for_each_value: Optional[blackboard_value.BlackboardValue]
   _for_each_protos: Optional[List[protobuf_message.Message]]
@@ -2172,7 +1996,6 @@ class Loop(Node):
         uuid.uuid4()
     ).replace('-', '_')
     self._name = name
-    self._node_id = None
     self._for_each_value_key = for_each_value_key
     self._for_each_value = None
     self._for_each_protos = Loop._for_each_proto_input_to_protos(
@@ -2432,35 +2255,18 @@ class Loop(Node):
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
     representation = f'{type(self).__name__}'
+    if self.max_times != 0:
+      representation += f' (iterations <= {self.max_times})'
     if self.while_condition is not None:
+      if self.max_times != 0:
+        representation += ' and'
       representation += f' {str(self.while_condition)}'
     if self._for_each_generator_cel_expression is not None:
       representation += f' over {self._for_each_generator_cel_expression}'
     if self._for_each_protos is not None:
       representation += f' over {len(self._for_each_protos)} protos'
-    representation += ' ('
-    if self.name is not None:
-      representation += f'name="{self.name}", '
-    if self.max_times != 0:
-      representation += f'max_times={self.max_times}, '
-    representation += f'{str(self.do_child)})'
+    representation += f' ({str(self.do_child)})'
     return representation
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -2534,19 +2340,20 @@ class Loop(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.LoopNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Loop':
-    """Created a Loop node class from a LoopNode proto."""
     condition = None
-    if proto_object.HasField('while'):
-      condition = Condition.create_from_proto(getattr(proto_object, 'while'))
+    if proto_object.loop.HasField('while'):
+      condition = Condition.create_from_proto(
+          getattr(proto_object.loop, 'while')
+      )
 
     for_each_value_key = None
     for_each_protos = None
     for_each_generator_cel_expression = None
-    if proto_object.HasField('for_each'):
-      for_each_field = proto_object.for_each
+    if proto_object.loop.HasField('for_each'):
+      for_each_field = proto_object.loop.for_each
       if for_each_field.value_blackboard_key:
         for_each_value_key = for_each_field.value_blackboard_key
       if for_each_field.HasField('protos'):
@@ -2560,14 +2367,18 @@ class Loop(Node):
         )
 
     loop = cls(
-        max_times=proto_object.max_times,
-        do_child=Node.create_from_proto(proto_object.do),
+        max_times=proto_object.loop.max_times,
+        do_child=super().create_from_proto(proto_object.loop.do),
         while_condition=condition,
-        loop_counter_key=proto_object.loop_counter_blackboard_key,
+        loop_counter_key=proto_object.loop.loop_counter_blackboard_key,
         for_each_value_key=for_each_value_key,
         for_each_protos=for_each_protos,
         for_each_generator_cel_expression=for_each_generator_cel_expression,
     )
+    if proto_object.HasField('decorators'):
+      loop.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      loop._name = proto_object.name
     return loop
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
@@ -2659,8 +2470,6 @@ class Branch(Node):
   """
 
   _decorators: Optional['Decorators']
-  _name: Optional[str]
-  _node_id: Optional[int]
 
   def __init__(
       self,
@@ -2674,7 +2483,6 @@ class Branch(Node):
     self.else_child: Optional['Node'] = _transform_to_optional_node(else_child)
     self.if_condition: Optional['Condition'] = if_condition
     self._name = name
-    self._node_id = None
     super().__init__()
 
   def set_then_child(
@@ -2703,22 +2511,6 @@ class Branch(Node):
     if self.else_child is not None:
       representation += f' else ({str(self.else_child)})'
     return representation
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -2758,21 +2550,30 @@ class Branch(Node):
     return self._decorators
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.BranchNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Branch':
-    """Creates a Branch node class from a BranchNode proto."""
     then_child = None
     else_child = None
-    if proto_object.HasField('then'):
-      then_child = Node.create_from_proto(proto_object.then)
-    if proto_object.HasField('else'):
-      else_child = Node.create_from_proto(getattr(proto_object, 'else'))
+    if proto_object.branch.HasField('then'):
+      then_child = super().create_from_proto(proto_object.branch.then)
+    if proto_object.branch.HasField('else'):
+      else_child = super().create_from_proto(
+          getattr(proto_object.branch, 'else')
+      )
     branch = cls(
-        if_condition=Condition.create_from_proto(getattr(proto_object, 'if')),
+        if_condition=Condition.create_from_proto(
+            getattr(proto_object.branch, 'if')
+        ),
         then_child=then_child,
         else_child=else_child,
     )
+    if proto_object.HasField('decorators'):
+      branch.set_decorators(
+          Decorators.create_from_proto(proto_object.decorators)
+      )
+    if proto_object.HasField('name'):
+      branch._name = proto_object.name
     return branch
 
   def dot_graph(  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
@@ -2862,7 +2663,6 @@ class Data(Node):
   _proto: Optional[protobuf_message.Message]
   _protos: Optional[List[protobuf_message.Message]]
   _name: Optional[str]
-  _node_id: Optional[int]
   _decorators: Optional['Decorators']
 
   class OperationType(enum.Enum):
@@ -2890,29 +2690,12 @@ class Data(Node):
     self._proto = proto
     self._protos = protos
     self._name = name
-    self._node_id = None
 
     super().__init__()
 
   def __repr__(self) -> str:
     """Returns a compact, human-readable string representation."""
     return f'{type(self).__name__}'
-
-  @property
-  def name(self) -> Optional[str]:
-    return self._name
-
-  @name.setter
-  def name(self, value: str):
-    self._name = value
-
-  @property
-  def node_id(self) -> Optional[int]:
-    return self._node_id
-
-  @node_id.setter
-  def node_id(self, value: int):
-    self._node_id = value
 
   @property
   def proto(self) -> behavior_tree_pb2.BehaviorTree.Node:
@@ -3157,8 +2940,8 @@ class Data(Node):
     return self
 
   @classmethod
-  def _create_from_proto(
-      cls, proto_object: behavior_tree_pb2.BehaviorTree.DataNode
+  def create_from_proto(
+      cls, proto_object: behavior_tree_pb2.BehaviorTree.Node
   ) -> 'Data':
     """Creates a new instances from data in a proto.
 
@@ -3172,14 +2955,20 @@ class Data(Node):
       InvalidArgumentError: if passed Node proto does not have the data field
         set to a valid configuration.
     """
+    if not proto_object.HasField('data'):
+      raise solutions_errors.InvalidArgumentError(
+          'Node proto does not have data not set'
+      )
+    data_node = proto_object.data
+
     operation = Data.OperationType.CREATE_OR_UPDATE
     cel_expression = None
     world_query = None
     proto = None
     protos = None
 
-    if proto_object.HasField('create_or_update'):
-      create_or_update = proto_object.create_or_update
+    if data_node.HasField('create_or_update'):
+      create_or_update = data_node.create_or_update
 
       blackboard_key = create_or_update.blackboard_key
       if create_or_update.HasField('cel_expression'):
@@ -3194,9 +2983,9 @@ class Data(Node):
       if create_or_update.HasField('protos'):
         protos = [p for p in create_or_update.protos.items]
 
-    elif proto_object.HasField('remove'):
+    elif data_node.HasField('remove'):
       operation = Data.OperationType.REMOVE
-      blackboard_key = proto_object.remove.blackboard_key
+      blackboard_key = data_node.remove.blackboard_key
     else:
       raise solutions_errors.InvalidArgumentError(
           'Data node proto does not have any operation set'
@@ -3210,6 +2999,11 @@ class Data(Node):
         proto=proto,
         protos=protos,
     )
+
+    if proto_object.HasField('decorators'):
+      data.set_decorators(Decorators.create_from_proto(proto_object.decorators))
+    if proto_object.HasField('name'):
+      data._name = proto_object.name
 
     data.validate()
     return data
@@ -3286,7 +3080,6 @@ class BehaviorTree:
 
   Attributes:
     name: Name of this behavior tree.
-    tree_id: A unique ID for this behavior tree.
     root: The root node of the tree of type Node.
     proto: The proto representation of the BehaviorTree.
     dot_graph: The graphviz dot representation of the BehaviorTree.
@@ -3301,8 +3094,6 @@ class BehaviorTree:
     bt.show()         # calling this in Jupyter would visualize the tree
   """
   # pyformat: enable
-
-  tree_id: Optional[str]
 
   def __init__(
       self,
@@ -3321,7 +3112,6 @@ class BehaviorTree:
         argument overwrites the value from the `bt` proto argument, if set.
     """
     root: Optional['Node'] = _transform_to_optional_node(root)
-    self.tree_id = None
     if bt is not None:
       bt_copy = None
       if isinstance(bt, BehaviorTree):
@@ -3332,7 +3122,6 @@ class BehaviorTree:
         raise TypeError
       name = name or bt_copy.name
       root = root or bt_copy.root
-      self.tree_id = bt_copy.tree_id
 
     self.name: str = name or ''
     self.root: Optional[Node] = root
@@ -3364,8 +3153,6 @@ class BehaviorTree:
       )
     proto_object = behavior_tree_pb2.BehaviorTree(name=self.name)
     proto_object.root.CopyFrom(self.root.proto)
-    if self.tree_id:
-      proto_object.tree_id = self.tree_id
     if self._description is not None:
       proto_object.description.CopyFrom(self._description)
     return proto_object
@@ -3375,26 +3162,10 @@ class BehaviorTree:
       cls, proto_object: behavior_tree_pb2.BehaviorTree
   ) -> 'BehaviorTree':
     """Instantiates a behavior tree from a proto."""
-    if cls != BehaviorTree:
-      raise TypeError(
-          'create_from_proto can only be called on the BehaviorTree class'
-      )
     bt = cls()
     bt.name = proto_object.name
-    if proto_object.HasField('tree_id'):
-      bt.tree_id = proto_object.tree_id
     bt.root = Node.create_from_proto(proto_object.root)
     return bt
-
-  def generate_and_set_unique_id(self) -> str:
-    """Generates a unique tree id and sets it for this tree."""
-    if self.tree_id is not None:
-      print(
-          'Warning: Creating a new unique id, but this tree already had an id'
-          f' ({self.tree_id})'
-      )
-    self.tree_id = str(uuid.uuid4())
-    return self.tree_id
 
   def dot_graph(self) -> graphviz.Digraph:
     """Converts the given behavior tree into a graphviz dot representation.

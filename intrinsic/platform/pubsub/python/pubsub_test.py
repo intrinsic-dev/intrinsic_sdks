@@ -8,7 +8,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from intrinsic.platform.common.proto import test_pb2
 from intrinsic.platform.pubsub.python import pubsub
-from intrinsic.solutions.testing import compare
 
 
 class CallbackType:
@@ -73,7 +72,7 @@ class PubsubTest(parameterized.TestCase):
   @parameterized.named_parameters(('proto', make_test_proto()))
   def test_pubsub(self, value):
     def msg_callback(message):
-      compare.assertProto2Equal(self, message, value)
+      self.assertEqual(message, value)
 
     config = pubsub.TopicConfig()
     self.callback_checker.subscribe(
@@ -126,7 +125,7 @@ class PubsubTest(parameterized.TestCase):
     def stock_callback(message: test_pb2.TestMessageStock):
       nonlocal condition
       nonlocal call_type
-      compare.assertProto2Equal(self, message, stock_message)
+      self.assertEqual(message, stock_message)
       call_type = CallbackType.OK
       with condition:
         condition.notify()

@@ -16,7 +16,6 @@ import (
 	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 	"intrinsic/skills/tools/skill/cmd/listutil"
-	"intrinsic/skills/tools/skill/cmd/skillid"
 	"intrinsic/skills/tools/skill/cmd/solutionutil"
 	"intrinsic/tools/inctl/cmd/root"
 	"intrinsic/tools/inctl/util/printer"
@@ -132,6 +131,12 @@ func init() {
 	cmdFlags.OptionalString(keyFilter, "", fmt.Sprintf("Filter skills by the way they where loaded into the solution. One of: %s.", strings.Join(filterOptions, ", ")))
 }
 
+// skills get a specific prefix when sideloaded via inctl.
+// This method checks if the skill id version string contains this prefix.
+func isSideloaded(skillIDversion string) bool {
+	return strings.Contains(skillIDversion, skillCmd.SideloadedSkillPrefix)
+}
+
 func applyFilter(skills *listutil.SkillDescriptions, filter string) *listutil.SkillDescriptions {
 	if filter == "" {
 		return skills
@@ -139,8 +144,8 @@ func applyFilter(skills *listutil.SkillDescriptions, filter string) *listutil.Sk
 
 	filteredSkills := listutil.SkillDescriptions{Skills: []listutil.SkillDescription{}}
 	for _, skill := range skills.Skills {
-		if filter == sideloadedFilter && skillid.IsSideloaded(skill.IDVersion) ||
-			filter == releasedFilter && !skillid.IsSideloaded(skill.IDVersion) {
+		if filter == sideloadedFilter && isSideloaded(skill.IDVersion) ||
+			filter == releasedFilter && !isSideloaded(skill.IDVersion) {
 			filteredSkills.Skills = append(filteredSkills.Skills, skill)
 		}
 	}

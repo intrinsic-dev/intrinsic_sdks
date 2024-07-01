@@ -10,7 +10,6 @@ from numpy import testing as np_testing
 
 from intrinsic.icon.proto import cart_space_pb2
 from intrinsic.kinematics.types import joint_limits_pb2
-from intrinsic.solutions.testing import compare
 from intrinsic.world.proto import object_world_refs_pb2
 from intrinsic.world.proto import object_world_service_pb2
 from intrinsic.world.python import object_world_ids
@@ -534,8 +533,7 @@ my_object: WorldObject(id=15)
       id: 'my_id'
       debug_hint: "Created from path world.my_object"
     """
-    compare.assertProto2Equal(
-        self,
+    self.assertEqual(
         transform_node_reference,
         text_format.Parse(
             transform_node_proto_string,
@@ -561,8 +559,7 @@ my_object: WorldObject(id=15)
       debug_hint: "Created from path world.my_grandparent.my_parent.my_object"
     """
 
-    compare.assertProto2Equal(
-        self,
+    self.assertEqual(
         object_reference,
         text_format.Parse(
             object_reference_string, object_world_refs_pb2.ObjectReference()
@@ -587,8 +584,7 @@ my_object: WorldObject(id=15)
       id: 'my_id'
       debug_hint: "Created from path world.my_object.my_frame"
     """
-    compare.assertProto2Equal(
-        self,
+    self.assertEqual(
         transform_node_reference,
         text_format.Parse(
             transform_node_proto_string,
@@ -614,8 +610,7 @@ my_object: WorldObject(id=15)
       id: 'my_id'
       debug_hint: "Created from path world.my_object.my_frame"
     """
-    compare.assertProto2Equal(
-        self,
+    self.assertEqual(
         frame_reference,
         text_format.Parse(
             frame_reference_string, object_world_refs_pb2.FrameReference()
