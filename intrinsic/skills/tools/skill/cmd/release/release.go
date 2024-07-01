@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	keyDocString = "doc_string"
+	keyDescription = "description"
 )
 
 var cmdFlags = cmdutil.NewCmdFlags()
@@ -30,7 +30,7 @@ var releaseExamples = strings.Join(
 		`Build a skill then upload and release it to the skill catalog:
 		  $ inctl skill release --type=build //abc:skill.tar ...`,
 		`Upload and release a skill image to the skill catalog:
-		  $ inctl skill release --type=archive abc/skill.tar ...`,
+		  $ inctl skill release --type=archive /path/to/skill.tar ...`,
 	},
 	"\n\n",
 )
@@ -49,14 +49,14 @@ func init() {
 	skillCmd.SkillCmd.AddCommand(releaseCmd)
 	cmdFlags.SetCommand(releaseCmd)
 
-	cmdFlags.AddFlagDefault()
+	cmdFlags.AddFlagDefault("skill")
 	cmdFlags.AddFlagDryRun()
 	cmdFlags.AddFlagManifestFile()
 	cmdFlags.AddFlagManifestTarget()
-	cmdFlags.AddFlagReleaseNotes()
-	cmdFlags.AddFlagReleaseType()
-	cmdFlags.AddFlagVendor()
-	cmdFlags.AddFlagVersion()
+	cmdFlags.AddFlagReleaseNotes("skill")
+	cmdFlags.AddFlagSkillReleaseType()
+	cmdFlags.AddFlagVendor("skill")
+	cmdFlags.AddFlagVersion("skill")
 
-	cmdFlags.OptionalString(keyDocString, "", "Skill documentation.")
+	cmdFlags.OptionalString(keyDescription, "", "A description of the skill.")
 }

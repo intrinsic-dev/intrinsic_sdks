@@ -182,7 +182,9 @@ class SkillInfoImpl(providers.SkillInfo):
   def message_classes(self) -> dict[str, Type[message.Message]]:
     return self._message_classes
 
-  def get_message_class(self, msg_descriptor: descriptor.Descriptor):
+  def get_message_class(
+      self, msg_descriptor: descriptor.Descriptor
+  ) -> Type[message.Message]:
     return self._message_classes[msg_descriptor.full_name]
 
   def get_parameter_field_comments(self, full_field_name: str) -> str:
@@ -253,10 +255,10 @@ def _gen_init_docstring(
   docstring: list[str] = [f"Skill class for {info.skill_proto.id} skill.\n"]
   # Expect 80 chars width
   is_first_line = True
-  for doc_string_line in textwrap.dedent(
-      info.skill_proto.doc_string
+  for description_line in textwrap.dedent(
+      info.skill_proto.description
   ).splitlines():
-    wrapped_lines = textwrap.wrap(doc_string_line, 80)
+    wrapped_lines = textwrap.wrap(description_line, 80)
     # Make sure that an empty line is wrapped to an empty line
     # and not removed. We assume that the skill author intended
     # the extra line break there unless it is the first line.
@@ -885,7 +887,7 @@ class GeneratedSkill(providers.SkillBase):
       proto.parameters.Pack(self._param_message)
 
     for slot, handle in self._resources.items():
-      proto.equipment[slot].handle = handle.name
+      proto.resources[slot].handle = handle.name
 
     for name, cel_expression in self._blackboard_params.items():
       proto.assignments.append(
@@ -907,8 +909,8 @@ class GeneratedSkill(providers.SkillBase):
           for field, value in self._param_message.ListFields()
       ])
     resource_params = []
-    if self.proto.equipment:
-      for key, value in sorted(self.proto.equipment.items()):
+    if self.proto.resources:
+      for key, value in sorted(self.proto.resources.items()):
         slot_param_name = key
         if key in self._info.field_names:
           slot_param_name = key + skill_utils.RESOURCE_SLOT_DECONFLICT_SUFFIX

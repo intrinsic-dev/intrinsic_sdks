@@ -155,6 +155,7 @@ cc_library(
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/cc:skill_canceller",
         "//intrinsic/skills/cc:skill_interface",
+        "//intrinsic/skills/cc:skill_logging_context",
         "//intrinsic/world/objects:object_world_client",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -184,6 +185,7 @@ cc_library(
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/cc:skill_canceller",
         "//intrinsic/skills/cc:skill_interface",
+        "//intrinsic/skills/cc:skill_logging_context",
         "//intrinsic/world/objects:object_world_client",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -202,6 +204,7 @@ cc_library(
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/cc:preview_context",
         "//intrinsic/skills/cc:skill_canceller",
+        "//intrinsic/skills/cc:skill_logging_context",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:prediction_cc_proto",
         "//intrinsic/skills/proto:skill_service_cc_proto",
@@ -345,30 +348,6 @@ cc_library(
     ],
 )
 
-# Link this library with your chosen skill libraries to create a binary that
-# serves those skills.
-cc_library(
-    name = "registerer_skill_service_main",
-    srcs = ["registerer_skill_service_main.cc"],
-    # This visibility is needed when building a skill service, because
-    # the users will link this target (through the provided BUILD rules)
-    # to provide the main.
-    visibility = [
-        "//visibility:public",
-    ],
-    deps = [
-        ":registerer_skill_repository",
-        ":skill_init",
-        "//intrinsic/icon/release/portable:init_xfa_absl",
-        "//intrinsic/util/grpc",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/time",
-        # This is needed when using grpc_cli.
-        "@com_github_grpc_grpc//:grpc++_reflection",
-    ],
-)
-
 py_library(
     name = "skill_repository_py",
     srcs = ["skill_repository.py"],
@@ -395,6 +374,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
         "@com_google_protobuf//:protobuf",
@@ -519,6 +499,7 @@ cc_library(
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/cc:skill_canceller",
         "//intrinsic/skills/cc:skill_interface",
+        "//intrinsic/skills/cc:skill_logging_context",
         "//intrinsic/skills/proto:error_cc_proto",
         "//intrinsic/skills/proto:skill_service_cc_grpc_proto",
         "//intrinsic/skills/proto:skill_service_cc_proto",
@@ -597,7 +578,6 @@ cc_library(
     deps = [
         "//intrinsic/assets/proto:id_cc_proto",
         "//intrinsic/icon/release:status_helpers",
-        "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:skill_manifest_cc_proto",
         "//intrinsic/skills/proto:skills_cc_proto",
@@ -605,6 +585,7 @@ cc_library(
         "//intrinsic/util/proto:source_code_info_view",
         "@com_github_google_re2//:re2",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
