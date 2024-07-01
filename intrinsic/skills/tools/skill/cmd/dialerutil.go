@@ -4,24 +4,56 @@
 package dialerutil
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	assetsauth "intrinsic/assets/auth"
+	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/tools/inctl/auth"
 )
 
 const (
 	maxMsgSize = math.MaxInt64
+	// policy for retrying failed gRPC requests as documented here:
+	// https://pkg.go.dev/google.golang.org/grpc/examples/features/retry
+	// Note that the Ingress will return UNIMPLEMENTED if the server it wants to forward to
+	// is unavailable, so we also check for UNIMPLEMENTED.
+	retryPolicy = `{
+		"methodConfig": [{
+				"waitForReady": true,
+
+				"retryPolicy": {
+						"MaxAttempts": 4,
+						"InitialBackoff": ".5s",
+						"MaxBackoff": ".5s",
+						"BackoffMultiplier": 1.5,
+						"RetryableStatusCodes": [ "UNAVAILABLE", "RESOURCE_EXHAUSTED", "UNIMPLEMENTED"]
+				}
+		}]
+}`
+)
+
+var (
+	baseDialOptions = []grpc.DialOption{
+		grpc.WithDefaultServiceConfig(retryPolicy),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxMsgSize),
+			grpc.MaxCallSendMsgSize(maxMsgSize),
+		),
+	}
 )
 
 // BasicAuth provides the data for perRPC authentication with the relay for the installer.
@@ -64,112 +96,6 @@ type DialInfoParams struct {
 	CredToken string // Optional the credential value itself. This bypasses the store
 }
 
-// insecure returns an insecure dial option when the user has physical access to
-// the server, otherwise it returns nil.
-func insecureOpts(address string) *[]grpc.DialOption {
-	for _, prefix := range []string{"dns:///www.endpoints", "dns:///portal.intrinsic.ai", "dns:///portal-qa.intrinsic.ai"} {
-		if strings.HasPrefix(address, prefix) {
-			return nil
-		}
-	}
-
-	return &[]grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-}
-
-// DialInfoCtx returns the metadata for dialing a gRPC connection to a cloud/on-prem cluster.
-//
-// Function uses provided ctx to manage lifecycle of connection created. Ctx may be
-// modified on return, caller is encouraged to switch to returned context if appropriate.
-//
-// DialInfoParams.Cluster optionally has to be set to the name of the target cluster if
-// DialInfoParams.Address is the address of a cloud cluster and the connection will be used to send
-// a request to an on-prem service via the relay running in the cloud cluster.
-//
-// Returns insecure connection data if the address is a local network address (such as
-// `localhost:17080`), otherwise retrieves cert from system cert pool, and sets up the metadata for
-// a TLS cert with per-RPC basic auth credentials.
-// Deprecated: please use DialConnectionCtx
-func DialInfoCtx(ctx context.Context, params DialInfoParams) (context.Context, *[]grpc.DialOption, error) {
-	ctx, opts, _, err := dialInfoCtxInt(ctx, params)
-	return ctx, opts, err
-}
-
-// dialInfoCtxInt is DialInfoCtx but allows to default the ServerAddr.
-// This is used by DialConnectionCtx and unifies the www.endpoints... handling
-func dialInfoCtxInt(ctx context.Context, params DialInfoParams) (context.Context, *[]grpc.DialOption, string, error) {
-	if params.Address == "" {
-		if params.CredName == "" {
-			return ctx, nil, "", fmt.Errorf("not enough information to build target address. Provide --org or --project")
-		}
-
-		params.Address = fmt.Sprintf("dns:///www.endpoints.%s.cloud.goog:443", params.CredName)
-	}
-
-	// policy for retrying failed gRPC requests as documented here:
-	// https://pkg.go.dev/google.golang.org/grpc/examples/features/retry
-	// Note that the Ingress will return UNIMPLEMENTED if the server it wants to forward to
-	// is unavailable, so we also check for UNIMPLEMENTED.
-	var retryPolicy = `{
-		"methodConfig": [{
-				"waitForReady": true,
-
-				"retryPolicy": {
-						"MaxAttempts": 4,
-						"InitialBackoff": ".5s",
-						"MaxBackoff": ".5s",
-						"BackoffMultiplier": 1.5,
-						"RetryableStatusCodes": [ "UNAVAILABLE", "RESOURCE_EXHAUSTED", "UNIMPLEMENTED"]
-				}
-		}]
-}`
-
-	baseOpts := []grpc.DialOption{
-		grpc.WithDefaultServiceConfig(retryPolicy),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(maxMsgSize),
-			grpc.MaxCallSendMsgSize(maxMsgSize),
-		),
-	}
-
-	if params.CredOrg != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, auth.OrgIDHeader, strings.Split(params.CredOrg, "@")[0])
-	}
-
-	if opts := insecureOpts(params.Address); opts != nil {
-		finalOpts := append(baseOpts, *opts...)
-		return ctx, &finalOpts, params.Address, nil
-	}
-	pool, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to retrieve system cert pool: %w", err)
-	}
-
-	if params.Cluster != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-server-name", params.Cluster)
-	}
-
-	rpcCredentials, err := createCredentials(params)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("cannot retrieve connection credentials: %w", err)
-	}
-
-	finalOpts := append(baseOpts,
-		grpc.WithPerRPCCredentials(rpcCredentials),
-		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(pool, "")),
-	)
-
-	return ctx, &finalOpts, params.Address, nil
-}
-
-func isLocal(address string) bool {
-	for _, localAddress := range []string{"127.0.0.1", "local", "xfa.lan"} {
-		if strings.Contains(address, localAddress) {
-			return true
-		}
-	}
-	return false
-}
-
 // ErrCredentialsRequired indicates that the credential name is not set in the
 // DialInfoParams for a non-local call.
 var ErrCredentialsRequired = errors.New("credential name required")
@@ -186,6 +112,162 @@ func (e *ErrCredentialsNotFound) Error() string {
 }
 
 func (e *ErrCredentialsNotFound) Unwrap() error { return e.Err }
+
+// DialCatalogContextOptions specifies the options DialCatalogContext.
+type DialCatalogContextOptions struct {
+	Address         string
+	Organization    string
+	Project         string
+	UseFirebaseAuth bool
+	UserReader      *bufio.Reader // Required if UseFirebaseAuth is true.
+	UserWriter      io.Writer     // Required if UseFirebaseAuth is true.
+}
+
+// DialCatalogContextFromInctl creates a connection to a catalog service from an inctl command.
+func DialCatalogContextFromInctl(cmd *cobra.Command, flags *cmdutil.CmdFlags) (*grpc.ClientConn, error) {
+	return DialCatalogContext(
+		cmd.Context(), DialCatalogContextOptions{
+			Address:         "",
+			Organization:    flags.GetFlagOrganization(),
+			Project:         flags.GetFlagProject(),
+			UseFirebaseAuth: false,
+			UserReader:      bufio.NewReader(cmd.InOrStdin()),
+			UserWriter:      cmd.OutOrStdout(),
+		},
+	)
+}
+
+// DialCatalogContext creates a connection to a catalog service.
+func DialCatalogContext(ctx context.Context, opts DialCatalogContextOptions) (*grpc.ClientConn, error) {
+	options := baseDialOptions
+
+	// Determine credentials to include in requests.
+	if opts.UseFirebaseAuth {
+		return nil, fmt.Errorf("firebase auth unimplemented")
+	} else if isLocal(opts.Address) {
+		options = append(options, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		rpcCreds, err := assetsauth.GetAPIKeyPerRPCCredentials(opts.Project, opts.Organization)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get api key per rpc credentials: %w", err)
+		}
+		tcOption, err := getTransportCredentialsDialOption()
+		if err != nil {
+			return nil, fmt.Errorf("cannot get transport credentials: %w", err)
+		}
+		options = append(options, grpc.WithPerRPCCredentials(rpcCreds), tcOption)
+	}
+
+	address, err := resolveAddress(opts.Address, opts.Project)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve address: %w", err)
+	}
+
+	conn, err := grpc.DialContext(ctx, address, options...)
+	if err != nil {
+		return nil, fmt.Errorf("dialing context: %w", err)
+	}
+
+	return conn, nil
+}
+
+// DialConnectionCtx creates and returns a gRPC connection that is created based on the DialInfoParams.
+// DialConnectionCtx will fill the ServerAddr or Credname if necessary.
+// The CredName is filled from the organization information. It's equal to the project's name.
+// The ServerAddr is defaulted to the endpoints url for compute projects.
+func DialConnectionCtx(ctx context.Context, params DialInfoParams) (context.Context, *grpc.ClientConn, error) {
+
+	ctx, dialerOpts, addr, err := dialInfoCtx(ctx, params)
+	if err != nil {
+		return nil, nil, fmt.Errorf("dial info: %w", err)
+	}
+
+	conn, err := grpc.DialContext(ctx, addr, *dialerOpts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("dialing context: %w", err)
+	}
+
+	return ctx, conn, nil
+}
+
+// dialInfoCtx returns the metadata for dialing a gRPC connection to a cloud/on-prem cluster.
+//
+// Function uses provided ctx to manage lifecycle of connection created. Ctx may be
+// modified on return, caller is encouraged to switch to returned context if appropriate.
+//
+// DialInfoParams.Cluster optionally has to be set to the name of the target cluster if
+// DialInfoParams.Address is the address of a cloud cluster and the connection will be used to send
+// a request to an on-prem service via the relay running in the cloud cluster.
+//
+// Returns insecure connection data if the address is a local network address (such as
+// `localhost:17080`), otherwise retrieves cert from system cert pool, and sets up the metadata for
+// a TLS cert with per-RPC basic auth credentials.
+func dialInfoCtx(ctx context.Context, params DialInfoParams) (context.Context, *[]grpc.DialOption, string, error) {
+	address, err := resolveAddress(params.Address, params.CredName)
+	if err != nil {
+		return ctx, nil, "", err
+	}
+	params.Address = address
+
+	if params.CredOrg != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, auth.OrgIDHeader, strings.Split(params.CredOrg, "@")[0])
+	}
+
+	if opts := insecureOpts(params.Address); opts != nil {
+		finalOpts := append(baseDialOptions, *opts...)
+		return ctx, &finalOpts, params.Address, nil
+	}
+
+	if params.Cluster != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-server-name", params.Cluster)
+	}
+
+	rpcCredentials, err := createCredentials(params)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot retrieve connection credentials: %w", err)
+	}
+	tcOption, err := getTransportCredentialsDialOption()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot retrieve transport credentials: %w", err)
+	}
+
+	finalOpts := append(baseDialOptions,
+		grpc.WithPerRPCCredentials(rpcCredentials),
+		tcOption,
+	)
+
+	return ctx, &finalOpts, params.Address, nil
+}
+
+func getTransportCredentialsDialOption() (grpc.DialOption, error) {
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve system cert pool: %w", err)
+	}
+
+	return grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(pool, "")), nil
+}
+
+// insecure returns an insecure dial option when the user has physical access to
+// the server, otherwise it returns nil.
+func insecureOpts(address string) *[]grpc.DialOption {
+	for _, prefix := range []string{"dns:///www.endpoints", "dns:///portal.intrinsic.ai", "dns:///portal-qa.intrinsic.ai"} {
+		if strings.HasPrefix(address, prefix) {
+			return nil
+		}
+	}
+
+	return &[]grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+}
+
+func isLocal(address string) bool {
+	for _, localAddress := range []string{"127.0.0.1", "local", "xfa.lan"} {
+		if strings.Contains(address, localAddress) {
+			return true
+		}
+	}
+	return false
+}
 
 func createCredentials(params DialInfoParams) (credentials.PerRPCCredentials, error) {
 	if params.CredToken != "" {
@@ -213,21 +295,14 @@ func createCredentials(params DialInfoParams) (credentials.PerRPCCredentials, er
 	return nil, ErrCredentialsRequired
 }
 
-// DialConnectionCtx creates and returns a gRPC connection that is created based on the DialInfoParams.
-// DialConnectionCtx will fill the ServerAddr or Credname if necessary.
-// The CredName is filled from the organization information. It's equal to the project's name.
-// The ServerAddr is defaulted to the endpoints url for compute projects.
-func DialConnectionCtx(ctx context.Context, params DialInfoParams) (context.Context, *grpc.ClientConn, error) {
-
-	ctx, dialerOpts, addr, err := dialInfoCtxInt(ctx, params)
-	if err != nil {
-		return nil, nil, fmt.Errorf("dial info: %w", err)
+func resolveAddress(address string, project string) (string, error) {
+	if address != "" {
+		return address, nil
 	}
 
-	conn, err := grpc.DialContext(ctx, addr, *dialerOpts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("dialing context: %w", err)
+	if project == "" {
+		return "", fmt.Errorf("project is required if no address is specified")
 	}
 
-	return ctx, conn, nil
+	return fmt.Sprintf("dns:///www.endpoints.%s.cloud.goog:443", project), nil
 }
