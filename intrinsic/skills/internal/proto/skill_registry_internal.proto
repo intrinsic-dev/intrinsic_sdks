@@ -5,14 +5,12 @@ syntax = "proto3";
 package intrinsic_proto.skills;
 
 import "google/protobuf/empty.proto";
-import "intrinsic/skills/proto/equipment.proto";
+import "intrinsic/resources/proto/resource_handle.proto";
 import "intrinsic/skills/proto/skill_registry_config.proto";
 import "intrinsic/skills/proto/skills.proto";
 
 message GetInstanceRequest {
-  // The identifier for the skill. This can either be the id or the id_version
-  // as described by intrinsic_proto.catalog.SkillMeta.id and
-  // instrinsic_proto.SkillMeta.id_version, respectively.
+  // The skill's id. This can be either the id or the id_version.
   string id = 4;
 
   // An optional instance id for the skill. If empty, a unique id will be
@@ -20,7 +18,7 @@ message GetInstanceRequest {
   string instance_id = 3;
 
   // The resource the instance will use.
-  map<string, intrinsic_proto.skills.ResourceHandle> handles = 2;
+  map<string, intrinsic_proto.resources.ResourceHandle> handles = 2;
 
   reserved 1;
 }
@@ -35,7 +33,7 @@ message GetInstanceResponse {
 }
 
 message RemoveSkillRequest {
-  // For format of id, see intrinsic_proto.catalog.SkillMeta.id
+  // The id of the skill to remove.
   string id = 1;
 }
 

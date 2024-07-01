@@ -98,8 +98,8 @@ func (cf *CmdFlags) GetFlagsCatalogInProcEnvironment() (bool, string) {
 }
 
 // AddFlagDefault adds a flag for marking a released asset as default.
-func (cf *CmdFlags) AddFlagDefault() {
-	cf.OptionalBool(KeyDefault, false, "Whether this version should be tagged as the default.")
+func (cf *CmdFlags) AddFlagDefault(assetType string) {
+	cf.OptionalBool(KeyDefault, false, fmt.Sprintf("Whether this %s version should be tagged as the default.", assetType))
 }
 
 // GetFlagDefault gets the value of the default flag added by AddFlagDefault.
@@ -216,8 +216,8 @@ func (cf *CmdFlags) GetFlagsRegistryAuthUserPassword() (string, string) {
 }
 
 // AddFlagReleaseNotes adds a flag for release notes.
-func (cf *CmdFlags) AddFlagReleaseNotes() {
-	cf.OptionalString(KeyReleaseNotes, "", "Release notes.")
+func (cf *CmdFlags) AddFlagReleaseNotes(assetType string) {
+	cf.OptionalString(KeyReleaseNotes, "", fmt.Sprintf("Release notes for this version of the %s.", assetType))
 }
 
 // GetFlagReleaseNotes gets the value of the release notes flag added by AddFlagReleaseNotes.
@@ -225,19 +225,21 @@ func (cf *CmdFlags) GetFlagReleaseNotes() string {
 	return cf.GetString(KeyReleaseNotes)
 }
 
-// AddFlagReleaseType adds a flag for the type when releasing an asset.
-func (cf *CmdFlags) AddFlagReleaseType() {
-	cf.RequiredString(KeyType, `The target's type {"build", "archive", "image"`+
-		`}:
-	"build" expects a build target that creates an image.
-	"archive" expects a file path pointing to an already-built image.
-	"image" expects a container image name.`+
-		"",
+// AddFlagSkillReleaseType adds a flag for the type when releasing a skill.
+func (cf *CmdFlags) AddFlagSkillReleaseType() {
+	targetTypeDescriptions := []string{}
+
+	targetTypeDescriptions = append(targetTypeDescriptions, `"build": a build target that creates a skill image.`)
+	targetTypeDescriptions = append(targetTypeDescriptions, `"archive": a file path to an already-built image.`)
+
+	cf.RequiredString(
+		KeyType,
+		fmt.Sprintf("The type of target that is being specified. One of the following:\n   %s", strings.Join(targetTypeDescriptions, "\n   ")),
 	)
 }
 
-// GetFlagReleaseType gets the value of the type flag added by AddFlagReleaseType.
-func (cf *CmdFlags) GetFlagReleaseType() string {
+// GetFlagSkillReleaseType gets the value of the type flag added by AddFlagSkillReleaseType.
+func (cf *CmdFlags) GetFlagSkillReleaseType() string {
 	return cf.GetString(KeyType)
 }
 
@@ -329,8 +331,8 @@ func (cf *CmdFlags) GetFlagSideloadStartTimeout() (time.Duration, string, error)
 }
 
 // AddFlagVendor adds a flag for the asset vendor.
-func (cf *CmdFlags) AddFlagVendor() {
-	cf.RequiredString(KeyVendor, "The asset vendor.")
+func (cf *CmdFlags) AddFlagVendor(assetType string) {
+	cf.RequiredString(KeyVendor, fmt.Sprintf("The %s vendor.", assetType))
 }
 
 // GetFlagVendor gets the value of the vendor flag added by AddFlagVendor.
@@ -339,8 +341,8 @@ func (cf *CmdFlags) GetFlagVendor() string {
 }
 
 // AddFlagVersion adds a flag for the asset version.
-func (cf *CmdFlags) AddFlagVersion() {
-	cf.RequiredString(KeyVersion, "The asset version, in sem-ver format.")
+func (cf *CmdFlags) AddFlagVersion(assetType string) {
+	cf.RequiredString(KeyVersion, fmt.Sprintf("The %s version, in sem-ver format.", assetType))
 }
 
 // GetFlagVersion gets the value of the version flag added by AddFlagVersion.

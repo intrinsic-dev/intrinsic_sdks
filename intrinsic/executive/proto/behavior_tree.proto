@@ -84,7 +84,6 @@ message BehaviorTree {
     }
 
     oneof condition_type {
-      Node tree = 1 [deprecated = true];  // root of a tree to evaluate
       BehaviorTree behavior_tree = 9;
       BlackboardExpression blackboard = 2;
       intrinsic_proto.executive.DomainFormula domain_formula = 3;
@@ -490,7 +489,7 @@ message BehaviorTree {
     //      | task b |
     //      | id: 1  |
     //      ----------
-    uint32 id = 17;
+    optional uint32 id = 17;
 
     reserved "import_tree";
     reserved 10;
@@ -527,7 +526,7 @@ message BehaviorTree {
   // later on. If it is not unique, the tree will fail to load, thus generating
   // an UUID is advised.
   // When not set, the executive will automatically generate a unique id.
-  // The format must follow: [a-zA-Z][a-zA-Z0-9_-]*
+  // The format must follow: [a-zA-Z0-9][a-zA-Z0-9_-]*
   //
   // For a parameterizable behavior tree, this field might be changed by the
   // executive during import to guarantee uniqueness. The reason is that the

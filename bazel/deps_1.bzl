@@ -18,10 +18,13 @@ load("@com_grail_bazel_toolchain//toolchain:rules.bzl", "llvm_toolchain")
 load("@rules_python//python:repositories.bzl", "python_register_toolchains")
 
 # Docker
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
+load("@rules_oci//oci:repositories.bzl", "LATEST_CRANE_VERSION", "oci_register_toolchains")
 load(
     "@io_bazel_rules_docker//repositories:repositories.bzl",
     container_repositories = "repositories",
 )
+load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains")
 load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
 load(
     "@io_bazel_rules_docker//cc:image.bzl",
@@ -64,7 +67,7 @@ def intrinsic_sdks_deps_1(register_go_toolchain = True):
     go_rules_dependencies()
 
     if register_go_toolchain:
-        go_register_toolchains(version = "1.19.5")
+        go_register_toolchains(version = "1.21.0")
 
     # CC toolchain
     # How to upgrade:
@@ -76,8 +79,8 @@ def intrinsic_sdks_deps_1(register_go_toolchain = True):
     bazel_toolchain_dependencies()
     llvm_toolchain(
         name = "llvm_toolchain",
-        distribution = "clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz",
-        llvm_version = "14.0.0",
+        distribution = "clang+llvm-15.0.6-x86_64-linux-gnu-ubuntu-18.04.tar.xz",
+        llvm_version = "15.0.6",
         sysroot = {
             "linux-x86_64": "@com_googleapis_storage_chrome_linux_amd64_sysroot//:all_files",
         },
@@ -90,12 +93,20 @@ def intrinsic_sdks_deps_1(register_go_toolchain = True):
     )
 
     # Docker
+    rules_oci_dependencies()
+    oci_register_toolchains(
+        name = "oci",
+        crane_version = LATEST_CRANE_VERSION,
+    )
+
+    # Required bazel-lib dependencies
+    aspect_bazel_lib_dependencies()
+
+    # Register bazel-lib toolchains
+    aspect_bazel_lib_register_toolchains()
     container_repositories()
-
     container_deps()
-
     _cc_image_repos()
-
     _py_image_repos()
 
     container_pull(

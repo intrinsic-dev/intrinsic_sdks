@@ -30,6 +30,7 @@ go_library(
         "//intrinsic/skills/tools/skill/cmd:cmdutil",
         "//intrinsic/skills/tools/skill/cmd:dialerutil",
         "@com_github_spf13_cobra//:go_default_library",
+        "@org_golang_google_protobuf//proto",
     ],
 )
 
@@ -42,6 +43,7 @@ go_library(
         "//intrinsic/skills/tools/skill/cmd:cmdutil",
         "//intrinsic/skills/tools/skill/cmd:dialerutil",
         "//intrinsic/skills/tools/skill/cmd:listutil",
+        "//intrinsic/skills/tools/skill/cmd:skillid",
         "//intrinsic/skills/tools/skill/cmd:solutionutil",
         "//intrinsic/tools/inctl/cmd:root",
         "//intrinsic/tools/inctl/util:printer",

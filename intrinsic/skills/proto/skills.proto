@@ -6,6 +6,7 @@ package intrinsic_proto.skills;
 
 import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
+import "intrinsic/resources/proto/resource_handle.proto";
 import "intrinsic/skills/proto/equipment.proto";
 
 message StringVector {
@@ -76,12 +77,11 @@ message Skill {
   // the package for the skill.
   string package_name = 9;
 
-  // The skill id. See intrinsic_proto.catalog.SkillMeta for the formatting of
-  // this id field.
+  // The skill id, formatted as: <package_name>.<name>
   string id = 10;
 
-  // The fully-qualified globally unique id of the skill.
-  // See: intrinsic_proto.catalog.SkillMeta for the formatting of this id field.
+  // The fully-qualified globally unique id of the skill, formatted as:
+  // <package_name>.<name>.<version>
   string id_version = 11;
 
   // Description information for the parameters of this Skill.
@@ -95,10 +95,8 @@ message Skill {
   // the implementation's requirements for that slot.
   map<string, intrinsic_proto.skills.ResourceSelector> resource_selectors = 4;
 
-  // General documentation that can be shown to a user/caller of the skill.
-  // You may include usage instructions, assumptions of operating the skill,
-  // intended exhibited behavior when running the skill.
-  string doc_string = 5;
+  // Description of the skill.
+  string description = 5;
 
   // Parameterizable Behavior Tree Description, if set, the executive can
   // retrieve a tree for this skill's ID.
@@ -119,8 +117,8 @@ message SkillInstance {
   // The globally-unique name of this skill instance.
   string instance_name = 1;
 
-  // The fully-qualified globally unique id of the skill
-  // See: intrinsic_proto.catalog.SkillMeta for the formatting of this id field.
+  // The fully-qualified globally unique id of the skill, formatted as:
+  // <package_name>.<name>.<version>
   string id_version = 10;
 
   // Dispatcher handle to project this skill.
@@ -132,7 +130,7 @@ message SkillInstance {
   // Maps equipment slot name to a handle satisfying the slot's selector. This
   // map must contain an entry for each slot in the implementation's
   // resource_selectors map.
-  map<string, intrinsic_proto.skills.ResourceHandle> resource_handles = 6;
+  map<string, intrinsic_proto.resources.ResourceHandle> resource_handles = 6;
 
   // DEPRECATED: Please retrieve default parameters via the ParameterDescription
   // returned by SkillRegistry::GetSkills, and not through a SkillInstance.

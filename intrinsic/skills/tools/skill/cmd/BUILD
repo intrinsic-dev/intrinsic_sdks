@@ -114,6 +114,16 @@ go_library(
     name = "listutil",
     srcs = ["listutil.go"],
     deps = [
+        "//intrinsic/assets:idutils",
         "//intrinsic/skills/proto:skills_go_proto",
+    ],
+)
+
+go_library(
+    name = "skillid",
+    srcs = ["skillid.go"],
+    deps = [
+        "//intrinsic/assets:idutils",
+        "@com_github_google_uuid//:go_default_library",
     ],
 )
