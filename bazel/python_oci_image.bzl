@@ -9,7 +9,6 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 def python_oci_image(
         name,
         binary,
-        extra_tars = [],
         symlinks = None,
         **kwargs):
     """Wrapper for creating a oci_image from a py_binary target.
@@ -21,7 +20,6 @@ def python_oci_image(
     Args:
       name: name of the image.
       binary: the py_binary target.
-      extra_tars: additional layers to add to the image with e.g. supporting files.
       symlinks: if specified, symlinks to add to the final image (analogous to rules_docker container_image#sylinks).
       **kwargs: extra arguments to pass on to the oci_image target.
     """
@@ -43,9 +41,7 @@ def python_oci_image(
     )
 
     # One layer with only the python interpreter.
-    # WORKSPACE: ".runfiles/local_config_python_x86_64-unknown-linux-gnu/"
-    # Bzlmod: "runfiles/rules_python~0.27.1~python~python_3_11_x86_64-unknown-linux-gnu/"
-    PY_INTERPRETER_REGEX = "\\.runfiles/\\S*_python\\S*_x86_64-unknown-linux-gnu/"
+    PY_INTERPRETER_REGEX = "\\.runfiles/local_config_python"
 
     native.genrule(
         name = name + "_interpreter_tar_manifest",
@@ -110,7 +106,7 @@ def python_oci_image(
             ":" + name + "_packages_layer",
             ":" + name + "_app_layer",
             ":" + name + "_symlink_layer",
-        ] + extra_tars,
+        ],
         visibility = ["//visibility:public"],
         **kwargs
     )

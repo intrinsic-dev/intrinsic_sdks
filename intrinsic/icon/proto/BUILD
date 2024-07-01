@@ -181,11 +181,6 @@ py_proto_library(
     deps = [":cart_space_proto"],
 )
 
-go_proto_library(
-    name = "cart_space_go_proto",
-    deps = [":cart_space_proto"],
-)
-
 cc_library(
     name = "cart_space_conversion",
     srcs = ["cart_space_conversion.cc"],

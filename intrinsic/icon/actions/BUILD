@@ -53,6 +53,34 @@ cc_library(
 )
 
 proto_library(
+    name = "cartesian_position_proto",
+    srcs = ["cartesian_position.proto"],
+    deps = [
+        "//intrinsic/icon/proto:cart_space_proto",
+        "//intrinsic/icon/proto:ik_options_proto",
+        "//intrinsic/kinematics/types:joint_limits_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "cartesian_position_cc_proto",
+    deps = [":cartesian_position_proto"],
+)
+
+py_proto_library(
+    name = "cartesian_position_py_pb2",
+    deps = [":cartesian_position_proto"],
+)
+
+cc_library(
+    name = "cartesian_position_info",
+    hdrs = ["cartesian_position_info.h"],
+    deps = [
+        ":cartesian_position_cc_proto",
+    ],
+)
+
+proto_library(
     name = "tare_force_torque_sensor_proto",
     srcs = ["tare_force_torque_sensor.proto"],
 )
@@ -71,35 +99,6 @@ cc_library(
     name = "tare_force_torque_sensor_info",
     hdrs = ["tare_force_torque_sensor_info.h"],
     deps = [":tare_force_torque_sensor_cc_proto"],
-)
-
-proto_library(
-    name = "cartesian_jogging_proto",
-    srcs = ["cartesian_jogging.proto"],
-    deps = [
-        "//intrinsic/icon/proto:cart_space_proto",
-        "//intrinsic/kinematics/types:joint_limits_proto",
-        "//intrinsic/math/proto:pose_proto",
-        "//intrinsic/math/proto:quaternion_proto",
-    ],
-)
-
-cc_proto_library(
-    name = "cartesian_jogging_cc_proto",
-    deps = [":cartesian_jogging_proto"],
-)
-
-py_proto_library(
-    name = "cartesian_jogging_py_pb2",
-    deps = [":cartesian_jogging_proto"],
-)
-
-cc_library(
-    name = "cartesian_jogging_info",
-    hdrs = ["cartesian_jogging_info.h"],
-    deps = [
-        ":cartesian_jogging_cc_proto",
-    ],
 )
 
 proto_library(

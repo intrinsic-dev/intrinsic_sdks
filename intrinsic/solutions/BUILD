@@ -232,6 +232,7 @@ py_library(
         "//intrinsic/util/grpc:error_handling",
         requirement("grpcio"),
         "@com_google_googleapis//google/longrunning:longrunning_py_proto",
+        "@com_google_protobuf//:protobuf_python",
     ],
 )
 

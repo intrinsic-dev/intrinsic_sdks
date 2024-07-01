@@ -52,16 +52,15 @@ go_library(
     name = "dialerutil",
     srcs = ["dialerutil.go"],
     deps = [
-        ":cmdutil",
-        "//intrinsic/assets:auth",
         "//intrinsic/tools/inctl/auth",
-        "@com_github_spf13_cobra//:go_default_library",
         "@io_opencensus_go//plugin/ocgrpc:go_default_library",
         "@io_opencensus_go//trace:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//credentials:go_default_library",
         "@org_golang_google_grpc//credentials/insecure:go_default_library",
+        "@org_golang_google_grpc//credentials/oauth:go_default_library",
         "@org_golang_google_grpc//metadata:go_default_library",
+        "@org_golang_x_oauth2//google:go_default_library",
     ],
 )
 

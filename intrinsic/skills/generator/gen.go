@@ -16,8 +16,10 @@ import (
 )
 
 type templateCCParameters struct {
-	CCHeaderPaths     []string
-	CreateSkillMethod string
+	CCHeaderPaths          []string
+	ParameterDescriptorPtr string
+	ReturnDescriptorPtr    string
+	CreateSkillMethod      string
 }
 
 type templatePyParameters struct {
@@ -83,6 +85,13 @@ func readSkillManifest(path string) (*manifestpb.Manifest, error) {
 	return manifest, nil
 }
 
+func ccDescriptorPointerFrom(protoMessageFullName string) string {
+	if protoMessageFullName == "" {
+		return "nullptr"
+	}
+	return "::" + strings.ReplaceAll(protoMessageFullName, ".", "::") + "::descriptor()"
+}
+
 func lastString(parts []string) string {
 	if len(parts) == 0 {
 		return ""
@@ -117,8 +126,10 @@ func WriteSkillServiceCC(manifestPath string, ccHeaderPaths []string, out string
 
 	return writeCCTemplateOutput(
 		templateCCParameters{
-			CCHeaderPaths:     ccHeaderPaths,
-			CreateSkillMethod: manifest.GetOptions().GetCcConfig().GetCreateSkill(),
+			CCHeaderPaths:          ccHeaderPaths,
+			ParameterDescriptorPtr: ccDescriptorPointerFrom(manifest.GetParameter().GetMessageFullName()),
+			ReturnDescriptorPtr:    ccDescriptorPointerFrom(manifest.GetReturnType().GetMessageFullName()),
+			CreateSkillMethod:      manifest.GetOptions().GetCcConfig().GetCreateSkill(),
 		},
 		out,
 	)
