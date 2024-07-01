@@ -53,14 +53,6 @@ def non_module_deps():
         strip_prefix = "opentelemetry-cpp-1.13.0",
     )
 
-    # GMock matchers for protocol buffers
-    http_archive(
-        name = "com_github_inazarenko_protobuf_matchers",
-        sha256 = "dbe84ce7cb476580f1f3029e2412d961338d09a3d6ac794e1d3560dc542f1a08",
-        strip_prefix = "protobuf-matchers-a76296f5d5369d57f44126acf59c290a397490c6",
-        url = "https://github.com/inazarenko/protobuf-matchers/archive/a76296f5d5369d57f44126acf59c290a397490c6.tar.gz",
-    )
-
     http_archive(
         name = "com_google_cel_cpp",
         url = "https://github.com/google/cel-cpp/archive/037873163975964a80a188ad7f936cb4f37f0684.tar.gz",  # 2024-01-29
@@ -69,9 +61,9 @@ def non_module_deps():
     )
     http_archive(
         name = "com_google_riegeli",
-        url = "https://github.com/google/riegeli/archive/e04f8e30376c6132cc4854915e42bd9ed9cddfcc.tar.gz",  # 2024-05-14
-        strip_prefix = "riegeli-e04f8e30376c6132cc4854915e42bd9ed9cddfcc",
-        sha256 = "f09a2e5db9b3d6906dd07fb2309bc91fabb1c832edc9a40580842f833fff74ce",
+        url = "https://github.com/google/riegeli/archive/15923d86939bf95cd0530bfa57cc4bbfcb61f444.tar.gz",  # 2024-05-14
+        strip_prefix = "riegeli-15923d86939bf95cd0530bfa57cc4bbfcb61f444",
+        sha256 = "cccbbf1c63d4677663796d44634e0bffc76718a4b8f1e6e02d30d4bfb62afbb2",
     )
 
     XLS_COMMIT = "507b33b5bdd696adb7933a6617b65c70e46d4703"  # 2024-03-06

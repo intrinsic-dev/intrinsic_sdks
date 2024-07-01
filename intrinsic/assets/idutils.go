@@ -8,8 +8,6 @@
 package idutils
 
 import (
-	"crypto/sha256"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -345,6 +343,9 @@ func IsVersion(version string) bool {
 //
 // A valid unreleased version is formatted as described by semver.org with build metadata matching
 // the reserved prefix for unreleased assets.
+//
+// Deprecated: New assets are not marked as unreleased on their version and this will return false
+// even if they are unreleased.
 func IsUnreleasedVersion(version string) bool {
 	return IsVersion(version) && nonReleasedVersionRegex.MatchString(version)
 }
@@ -419,18 +420,6 @@ func ValidatePackage(pkg string) error {
 func ValidateVersion(version string) error {
 	if !IsVersion(version) {
 		return fmt.Errorf("%q is not a valid version", version)
-	}
-	return nil
-}
-
-// ValidateUnreleasedVersion validates an unreleased version.
-//
-// An unreleased version is formatted as described in IsUnreleasedVersion.
-//
-// Returns an error if `version` is not valid or not unreleased.
-func ValidateUnreleasedVersion(version string) error {
-	if !IsUnreleasedVersion(version) {
-		return fmt.Errorf("%q is not a valid unreleased version", version)
 	}
 	return nil
 }
@@ -515,36 +504,10 @@ func FromLabel(label string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(label, "--", "."), "-", "_")
 }
 
-// UnreleasedAssetKind describes the kind (i.e. the "source") of an unreleased asset.
-//
-// The kind is encoded in the version of the asset.
-type UnreleasedAssetKind string
-
 const (
 	// IDVersionURLRegex is a regex for HTTP handlers that captures all valid IDVersions.
 	// It also captures some invalid IDVersions, but those can be invalidated by the handler function
 	// so a validation error rather than a 404 can be returned.
 	// For fully qualified regex according to go/intrinsic-assets-metadata, use idVersionRegex.
 	IDVersionURLRegex = `[a-zA-Z0-9_\.\+]+`
-	// UnreleasedAssetKindSideloaded describes an asset that has been or will be sideloaded.
-	UnreleasedAssetKindSideloaded = "sideloaded"
-
-	// UnreleasedAssetKindInlined describes an asset that has been or will be inlined from source.
-	UnreleasedAssetKindInlined = "inlined"
 )
-
-// UnreleasedVersion creates a deterministic, unreleased version of the given kind. The version is
-// marked with a digest of the data to provide strong uniqueness guarantees.
-//
-// The resulting version is formatted as described in IsUnreleasedVersion.
-//
-// Returns an error if the kind is unknown/invalid or data is empty.
-func UnreleasedVersion(kind UnreleasedAssetKind, data []byte) (string, error) {
-	if kind != UnreleasedAssetKindSideloaded && kind != UnreleasedAssetKindInlined {
-		return "", errors.New("invalid kind")
-	}
-	if len(data) == 0 {
-		return "", errors.New("empty data")
-	}
-	return fmt.Sprintf("0.0.1+%s%x", kind, sha256.Sum256(data)), nil
-}
