@@ -3,6 +3,7 @@
 """Tests for intrinsic.executive.workcell.public.workcell."""
 
 import datetime
+import enum
 import inspect
 import textwrap
 from unittest import mock
@@ -63,19 +64,29 @@ _DEFAULT_TEST_MESSAGE = test_skill_params_pb2.TestMessage(
     my_bool=False,
     my_string='bar',
     sub_message=test_skill_params_pb2.SubMessage(name='baz'),
+    optional_sub_message=test_skill_params_pb2.SubMessage(name='quz'),
     my_repeated_doubles=[-5.5, 10.5],
     repeated_submessages=[
         test_skill_params_pb2.SubMessage(name='foo'),
         test_skill_params_pb2.SubMessage(name='bar'),
     ],
+    my_required_int32=42,
     my_oneof_double=1.5,
     pose=pose_pb2.Pose(
         position=point_pb2.Point(),
         orientation=quaternion_pb2.Quaternion(x=0.5, y=0.5, z=0.5, w=0.5),
     ),
+    foo=test_skill_params_pb2.TestMessage.Foo(
+        bar=test_skill_params_pb2.TestMessage.Foo.Bar(test='test')
+    ),
+    enum_v=test_skill_params_pb2.TestMessage.THREE,
     string_int32_map={'foo': 1},
     int32_string_map={3: 'foobar'},
     string_message_map={'bar': test_message_pb2.TestMessage(int32_value=1)},
+    executive_test_message=test_message_pb2.TestMessage(int32_value=123),
+    non_unique_field_name=test_skill_params_pb2.TestMessage.SomeType(
+        non_unique_field_name=test_skill_params_pb2.TestMessage.AnotherType()
+    ),
 )
 
 
@@ -467,14 +478,20 @@ class SkillsTest(parameterized.TestCase):
         'my_bool=False, '
         "my_string='bar', "
         'sub_message=name: "baz"\n, '
+        'optional_sub_message=name: "quz"\n, '
         'my_repeated_doubles=[-5.5, 10.5], '
         'repeated_submessages=[name: "foo"\n, name: "bar"\n], '
+        'my_required_int32=42, '
         'my_oneof_double=1.5, '
         'pose=position {\n}\norientation {\n  x: 0.5\n  y: 0.5\n  z: 0.5\n  w:'
         ' 0.5\n}\n, '
+        'foo=bar {\n  test: "test"\n}\n, '
+        'enum_v=3, '
+        'executive_test_message=int32_value: 123\n, '
         'string_int32_map={"foo": 1}, '
         "int32_string_map={3: 'foobar'}, "
         'string_message_map={"bar": int32_value: 1\n}, '
+        'non_unique_field_name=non_unique_field_name {\n}\n, '
         'a={handle: "some-name"})'
     )
     self.assertEqual(str(skill), skill_str)
@@ -1128,7 +1145,9 @@ class SkillsTest(parameterized.TestCase):
         'foo:'
         ' intrinsic.solutions.skills'
         '.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.Foo, '
-        'enum_v: int, '
+        'enum_v:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.TestEnum, '
         'executive_test_message:'
         ' intrinsic.solutions.skills'
         '.ai.intrinsic.my_skill.intrinsic_proto.executive.TestMessage, '
@@ -1171,61 +1190,87 @@ class SkillsTest(parameterized.TestCase):
     expected_signature = (
         '(*, sub_message:'
         ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage,'
-        ' optional_sub_message:'
-        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage,'
         ' my_required_int32: int, my_oneof_sub_message:'
         ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage,'
         ' pose:'
         ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.Pose,'
-        ' foo:'
-        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.Foo,'
-        ' enum_v: int, executive_test_message:'
+        ' executive_test_message:'
         ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.executive.TestMessage,'
         ' non_unique_field_name:'
         ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.SomeType,'
         ' my_double: float = 2.5, my_float: float = -1.5, my_int32: int = 5,'
         ' my_int64: int = 9, my_uint32: int = 11, my_uint64: int = 21, my_bool:'
-        " bool = False, my_string: str = 'bar', my_repeated_doubles:"
-        ' Sequence[float] = [-5.5, 10.5], repeated_submessages:'
+        " bool = False, my_string: str = 'bar', optional_sub_message:"
+        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage'
+        ' = name: "quz"\n, my_repeated_doubles: Sequence[float] = [-5.5, 10.5],'
+        ' repeated_submessages:'
         ' Sequence[intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage]'
-        ' = [name: "foo"\n, name: "bar"\n], my_oneof_double: float = 1.5,'
-        ' string_int32_map: dict[typing.Union[str, int, bool], typing.Any] ='
-        " {'foo': 1}, int32_string_map: dict[typing.Union[str, int, bool],"
+        ' = [name: "foo"\n, name: "bar"\n], my_oneof_double: float = 1.5, foo:'
+        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.Foo'
+        ' = bar {\n  test: "test"\n}\n, enum_v:'
+        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.TestEnum'
+        ' = 3, string_int32_map: dict[typing.Union[str, int, bool], typing.Any]'
+        " = {'foo': 1}, int32_string_map: dict[typing.Union[str, int, bool],"
         " typing.Any] = {3: 'foobar'}, string_message_map:"
-        " dict[typing.Union[str, int, bool], typing.Any] = {'bar': int32_value:"
-        ' 1\n})'
+        " dict[typing.Union[str, int, bool], typing.Any] = {'bar':"
+        ' int32_value: 1\n})'
     )
     self.assertSignature(signature, expected_signature)
 
-  def test_str(self):
-    """Tests if Action conversion to string works."""
+  def test_skill_class_docstring(self):
+    skill_info = self._utils.create_test_skill_info_with_return_value(
+        skill_id='ai.intrinsic.my_skill',
+        parameter_defaults=_DEFAULT_TEST_MESSAGE,
+        skill_description='This is an awesome skill.',
+        resource_selectors={'a': 'some-type-a', 'b': 'some-type-b'},
+    )
+    docstring = """\
+Skill class for ai.intrinsic.my_skill.
+
+This is an awesome skill."""
+
+    skills = skill_providing.Skills(
+        self._utils.create_skill_registry_for_skill_info(skill_info),
+        self._utils.create_empty_resource_registry(),
+    )
+
+    self.assertEqual(skills.ai.intrinsic.my_skill.__doc__, docstring)
+
+  def test_skill_init_docstring(self):
     skill_info = self._utils.create_test_skill_info_with_return_value(
         skill_id='ai.intrinsic.my_skill',
         parameter_defaults=_DEFAULT_TEST_MESSAGE,
         resource_selectors={'a': 'some-type-a', 'b': 'some-type-b'},
     )
     docstring = """\
-Skill class for ai.intrinsic.my_skill skill.
+Initializes an instance of the skill ai.intrinsic.my_skill.
 
+This method accepts the following proto messages:
+  - my_skill.intrinsic_proto.Pose
+  - my_skill.intrinsic_proto.executive.TestMessage"""
+    docstring += """
+  - my_skill.intrinsic_proto.test_data.SubMessage
+  - my_skill.intrinsic_proto.test_data.TestMessage.Foo
+  - my_skill.intrinsic_proto.test_data.TestMessage.Int32StringMapEntry
+  - my_skill.intrinsic_proto.test_data.TestMessage.SomeType
+  - my_skill.intrinsic_proto.test_data.TestMessage.StringInt32MapEntry
+  - my_skill.intrinsic_proto.test_data.TestMessage.StringMessageMapEntry
+
+This method accepts the following proto enums:
+  - my_skill.intrinsic_proto.test_data.TestMessage.TestEnum
 
 Args:
     a:
         Resource with capability some-type-a
     b:
         Resource with capability some-type-b
-    enum_v:
-        Mockup comment
     executive_test_message:
-        Mockup comment
-    foo:
         Mockup comment
     my_oneof_sub_message:
         Mockup comment
     my_required_int32:
         Mockup comment
     non_unique_field_name:
-        Mockup comment
-    optional_sub_message:
         Mockup comment
     pose:
         Mockup comment
@@ -1235,6 +1280,15 @@ Args:
     sub_message:
         Mockup comment"""
     docstring += """
+    enum_v:
+        Mockup comment
+        Default value: 3
+    foo:
+        Mockup comment
+        Default value: bar {
+  test: "test"
+}
+
     int32_string_map:
         Mockup comment
         Default value: {3: 'foobar'}
@@ -1268,6 +1322,10 @@ Args:
     my_uint64:
         Mockup comment
         Default value: 21
+    optional_sub_message:
+        Mockup comment
+        Default value: name: "quz"
+
     repeated_submessages:
         Mockup comment
         Default value: [name: "foo"
@@ -1329,6 +1387,20 @@ Returns:
     docstring += """
     sub_message:
         Mockup comment"""
+
+    skills = skill_providing.Skills(
+        self._utils.create_skill_registry_for_skill_info(skill_info),
+        self._utils.create_empty_resource_registry(),
+    )
+
+    self.assertEqual(skills.ai.intrinsic.my_skill.__init__.__doc__, docstring)
+
+  def test_skill_repr(self):
+    skill_info = self._utils.create_test_skill_info_with_return_value(
+        skill_id='ai.intrinsic.my_skill',
+        parameter_defaults=_DEFAULT_TEST_MESSAGE,
+        resource_selectors={'a': 'some-type-a', 'b': 'some-type-b'},
+    )
     parameters = {'my_float': 1.25, 'my_bool': True}
 
     skill_repr = (
@@ -1342,14 +1414,20 @@ Returns:
         'my_bool=True, '
         "my_string='bar', "
         'sub_message=name: "baz"\n, '
+        'optional_sub_message=name: "quz"\n, '
         'my_repeated_doubles=[-5.5, 10.5], '
         'repeated_submessages=[name: "foo"\n, name: "bar"\n], '
+        'my_required_int32=42, '
         'my_oneof_double=1.5, '
         'pose=position {\n}\n'
         'orientation {\n  x: 0.5\n  y: 0.5\n  z: 0.5\n  w: 0.5\n}\n, '
+        'foo=bar {\n  test: "test"\n}\n, '
+        'enum_v=3, '
+        'executive_test_message=int32_value: 123\n, '
         'string_int32_map={"foo": 1}, '
         "int32_string_map={3: 'foobar'}, "
         'string_message_map={"bar": int32_value: 1\n}, '
+        'non_unique_field_name=non_unique_field_name {\n}\n, '
         'a={handle: "resource_a"}, '
         'b={handle: "resource_b"})'
     )
@@ -1358,8 +1436,6 @@ Returns:
         self._utils.create_skill_registry_for_skill_info(skill_info),
         self._utils.create_empty_resource_registry(),
     )
-
-    self.assertEqual(skills.ai.intrinsic.my_skill.__doc__, docstring)
 
     resource_a = provided.ResourceHandle.create('resource_a', ['some-type-a'])
     resource_b = provided.ResourceHandle.create('resource_b', ['some-type-b'])
@@ -1399,10 +1475,9 @@ Returns:
     )
 
     self.assertEqual(
-        skills.ai.intrinsic.my_skill.__doc__,
+        skills.ai.intrinsic.my_skill.__init__.__doc__,
         textwrap.dedent("""\
-            Skill class for ai.intrinsic.my_skill skill.
-
+            Initializes an instance of the skill ai.intrinsic.my_skill.
 
             Args:
                 a_resource:
@@ -1449,10 +1524,9 @@ Returns:
     )
 
     self.assertEqual(
-        skills.ai.intrinsic.my_skill.__doc__,
+        skills.ai.intrinsic.my_skill.__init__.__doc__,
         textwrap.dedent("""\
-      Skill class for ai.intrinsic.my_skill skill.
-
+      Initializes an instance of the skill ai.intrinsic.my_skill.
 
       Args:
           a:
@@ -1781,29 +1855,168 @@ Returns:
         skill_utils.MessageWrapper,
     )
 
-  def test_message_wrapper_signature(self):
+  def test_message_wrapper_class_docstring(self):
     skill_info = self._utils.create_test_skill_info(
         skill_id='ai.intrinsic.my_skill',
-        parameter_defaults=test_skill_params_pb2.TestMessage(),
+        parameter_defaults=test_skill_params_pb2.TestMessageWrapped(),
     )
+
     skills = skill_providing.Skills(
         self._utils.create_skill_registry_for_skill_info(skill_info),
         self._utils.create_empty_resource_registry(),
     )
 
-    signature = inspect.signature(
-        skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage
+    self.assertEqual(
+        skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.__doc__,
+        'Proto message wrapper class for'
+        ' intrinsic_proto.test_data.TestMessage.',
     )
-    self.assertSignature(signature, '(*, name: str)')
 
+  def test_message_wrapper_init_docstring(self):
+    skill_info = self._utils.create_test_skill_info_with_return_value(
+        skill_id='ai.intrinsic.my_skill',
+        parameter_defaults=test_skill_params_pb2.TestMessageWrapped(),
+    )
+    docstring = """\
+Initializes an instance of my_skill.intrinsic_proto.test_data.TestMessage.
+
+This method accepts the following proto messages:
+  - my_skill.intrinsic_proto.Pose
+  - my_skill.intrinsic_proto.executive.TestMessage"""
+    docstring += """
+  - my_skill.intrinsic_proto.test_data.SubMessage
+  - my_skill.intrinsic_proto.test_data.TestMessage.Foo
+  - my_skill.intrinsic_proto.test_data.TestMessage.Int32StringMapEntry
+  - my_skill.intrinsic_proto.test_data.TestMessage.SomeType
+  - my_skill.intrinsic_proto.test_data.TestMessage.StringInt32MapEntry
+  - my_skill.intrinsic_proto.test_data.TestMessage.StringMessageMapEntry
+
+This method accepts the following proto enums:
+  - my_skill.intrinsic_proto.test_data.TestMessage.TestEnum
+
+Fields:
+    enum_v:
+        Mockup comment
+    executive_test_message:
+        Mockup comment
+    foo:
+        Mockup comment
+    int32_string_map:
+        Mockup comment
+    my_bool:
+        Mockup comment
+    my_double:
+        Mockup comment
+    my_float:
+        Mockup comment
+    my_int32:
+        Mockup comment
+    my_int64:
+        Mockup comment
+    my_oneof_double:
+        Mockup comment
+    my_oneof_sub_message:
+        Mockup comment
+    my_repeated_doubles:
+        Mockup comment
+    my_required_int32:
+        Mockup comment
+    my_string:
+        Mockup comment
+    my_uint32:
+        Mockup comment
+    my_uint64:
+        Mockup comment
+    non_unique_field_name:
+        Mockup comment
+    optional_sub_message:
+        Mockup comment
+    pose:
+        Mockup comment
+    repeated_submessages:
+        Mockup comment
+    string_int32_map:
+        Mockup comment
+    string_message_map:
+        Mockup comment"""
+    docstring += """
+    sub_message:
+        Mockup comment"""
+
+    skills = skill_providing.Skills(
+        self._utils.create_skill_registry_for_skill_info(skill_info),
+        self._utils.create_empty_resource_registry(),
+    )
+    my_skill = skills.ai.intrinsic.my_skill
+
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.TestMessage.__init__.__doc__,
+        docstring,
+    )
+
+  def test_message_wrapper_signature(self):
+    skill_info = self._utils.create_test_skill_info(
+        skill_id='ai.intrinsic.my_skill',
+        parameter_defaults=test_skill_params_pb2.TestMessageWrapped(),
+    )
+
+    # pyformat: disable
+    expected_signature = (
+        '(*, '
+        'my_double: float, '
+        'my_float: float, '
+        'my_int32: int, '
+        'my_int64: int, '
+        'my_uint32: int, '
+        'my_uint64: int, '
+        'my_bool: bool, '
+        'my_string: str, '
+        'sub_message:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage, '
+        'optional_sub_message:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage, '
+        'my_required_int32: int, '
+        'my_oneof_double: float, '
+        'my_oneof_sub_message:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage, '
+        'pose:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.Pose, '
+        'foo:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.Foo, '
+        'enum_v:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.TestEnum, '
+        'executive_test_message:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.executive.TestMessage, '
+        'non_unique_field_name:'
+        ' intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.SomeType, '
+        'my_repeated_doubles: Sequence[float] = [], '
+        'repeated_submessages:'
+        ' Sequence[intrinsic.solutions.skills'
+        '.ai.intrinsic.my_skill.intrinsic_proto.test_data.SubMessage] = [], '
+        'string_int32_map: dict[typing.Union[str, int, bool], typing.Any] = {}, '
+        'int32_string_map: dict[typing.Union[str, int, bool], typing.Any] = {}, '
+        'string_message_map: dict[typing.Union[str, int, bool], typing.Any] = {})'
+    )
+    # pyformat: enable
+
+    skills = skill_providing.Skills(
+        self._utils.create_skill_registry_for_skill_info(skill_info),
+        self._utils.create_empty_resource_registry(),
+    )
+
+    my_skill = skills.ai.intrinsic.my_skill
     signature = inspect.signature(
-        skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.SomeType
+        my_skill.intrinsic_proto.test_data.TestMessage
     )
-    self.assertSignature(
-        signature,
-        '(*, non_unique_field_name:'
-        ' intrinsic.solutions.skills.ai.intrinsic.my_skill.intrinsic_proto.test_data.TestMessage.AnotherType)',
-    )
+    self.assertSignature(signature, expected_signature)
 
   def test_message_wrapper_params(self):
     skill_info = self._utils.create_test_skill_info(
@@ -1865,23 +2078,125 @@ Returns:
         self, test_message_wrapper.wrapped_message, expected_test_message
     )
 
-  def test_top_level_enum_values(self):
-    """If the skill parameter proto defines any enums, the values of those enums should become constants on the skill wrapper class."""
+  def test_enum_wrapper_class(self):
     skill_info = self._utils.create_test_skill_info(
         skill_id='ai.intrinsic.my_skill',
-        parameter_defaults=_DEFAULT_TEST_MESSAGE,
+        parameter_defaults=test_skill_params_pb2.VariousEnumsMessage(),
     )
     skills = skill_providing.Skills(
         self._utils.create_skill_registry_for_skill_info(skill_info),
         self._utils.create_empty_resource_registry(),
     )
 
-    self.assertTrue(hasattr(skills.ai.intrinsic.my_skill, 'ONE'))
-    self.assertEqual(getattr(skills.ai.intrinsic.my_skill, 'ONE'), 1)
-    self.assertTrue(hasattr(skills.ai.intrinsic.my_skill, 'THREE'))
-    self.assertEqual(getattr(skills.ai.intrinsic.my_skill, 'THREE'), 3)
-    self.assertTrue(hasattr(skills.ai.intrinsic.my_skill, 'FIVE'))
-    self.assertEqual(getattr(skills.ai.intrinsic.my_skill, 'FIVE'), 5)
+    my_skill = skills.ai.intrinsic.my_skill
+
+    global_enum = my_skill.intrinsic_proto.test_data.GlobalEnum
+    self.assertTrue(issubclass(global_enum, enum.IntEnum))
+    self.assertEqual(global_enum.__name__, 'GlobalEnum')
+    self.assertEqual(
+        global_enum.__qualname__,
+        'my_skill.intrinsic_proto.test_data.GlobalEnum',
+    )
+    self.assertEqual(
+        global_enum.__module__,
+        'intrinsic.solutions.skills.ai.intrinsic',
+    )
+
+    test_enum = my_skill.intrinsic_proto.test_data.TestMessage.TestEnum
+    self.assertTrue(issubclass(test_enum, enum.IntEnum))
+    self.assertEqual(test_enum.__name__, 'TestEnum')
+    self.assertEqual(
+        test_enum.__qualname__,
+        'my_skill.intrinsic_proto.test_data.TestMessage.TestEnum',
+    )
+    self.assertEqual(
+        test_enum.__module__,
+        'intrinsic.solutions.skills.ai.intrinsic',
+    )
+
+  def test_enum_values(self):
+    skill_info = self._utils.create_test_skill_info(
+        skill_id='ai.intrinsic.my_skill',
+        parameter_defaults=test_skill_params_pb2.VariousEnumsMessage(),
+    )
+    skills = skill_providing.Skills(
+        self._utils.create_skill_registry_for_skill_info(skill_info),
+        self._utils.create_empty_resource_registry(),
+    )
+
+    my_skill = skills.ai.intrinsic.my_skill
+
+    # Test global enum.
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.GlobalEnum.GLOBAL_ENUM_UNSPECIFIED, 0
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.GlobalEnum.GLOBAL_ENUM_ONE, 1
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.GlobalEnum.GLOBAL_ENUM_TWO, 2
+    )
+
+    # Test global enum shortcuts.
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.GLOBAL_ENUM_UNSPECIFIED, 0
+    )
+    self.assertEqual(my_skill.intrinsic_proto.test_data.GLOBAL_ENUM_ONE, 1)
+    self.assertEqual(my_skill.intrinsic_proto.test_data.GLOBAL_ENUM_TWO, 2)
+
+    # Test enum which is nested in a message.
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.TestMessage.TestEnum.UNKNOWN, 0
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.TestMessage.TestEnum.ONE, 1
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.TestMessage.TestEnum.THREE, 3
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.TestMessage.TestEnum.FIVE, 5
+    )
+
+    # Test shortcuts for an enum which is nested in a message.
+    self.assertEqual(my_skill.intrinsic_proto.test_data.TestMessage.UNKNOWN, 0)
+    self.assertEqual(my_skill.intrinsic_proto.test_data.TestMessage.ONE, 1)
+    self.assertEqual(my_skill.intrinsic_proto.test_data.TestMessage.THREE, 3)
+    self.assertEqual(my_skill.intrinsic_proto.test_data.TestMessage.FIVE, 5)
+
+    # Test enum which is nested in the skills param message.
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VariousEnumsEnum.VARIOUS_ENUMS_ENUM_UNSPECIFIED,
+        0,
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VariousEnumsEnum.VARIOUS_ENUMS_ENUM_ONE,
+        1,
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VariousEnumsEnum.VARIOUS_ENUMS_ENUM_TWO,
+        2,
+    )
+
+    # Test shortcuts for enum which is nested in the skills param message.
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VARIOUS_ENUMS_ENUM_UNSPECIFIED,
+        0,
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VARIOUS_ENUMS_ENUM_ONE,
+        1,
+    )
+    self.assertEqual(
+        my_skill.intrinsic_proto.test_data.VariousEnumsMessage.VARIOUS_ENUMS_ENUM_TWO,
+        2,
+    )
+
+    # Test special shortcuts directly on skill class for enum which is nested in
+    # the skills param message.
+    self.assertEqual(my_skill.VARIOUS_ENUMS_ENUM_UNSPECIFIED, 0)
+    self.assertEqual(my_skill.VARIOUS_ENUMS_ENUM_ONE, 1)
+    self.assertEqual(my_skill.VARIOUS_ENUMS_ENUM_TWO, 2)
 
 
 if __name__ == '__main__':

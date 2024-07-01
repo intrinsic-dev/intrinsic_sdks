@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import collections
+import enum
 import inspect
 import re
 import textwrap
@@ -207,57 +208,17 @@ class SkillInfoImpl(provided.SkillInfo):
     )
 
 
-def _get_descriptor(
-    parameter_description: skills_pb2.ParameterDescription,
-) -> descriptor_pb2.DescriptorProto:
-  """Pulls the parameter descriptor out of the descriptor fileset.
+def _gen_class_docstring(info: provided.SkillInfo) -> str:
+  """Generates the class docstring for a skill class.
 
   Args:
-    parameter_description: The skill's parameter description proto.
+    info: The skill's SkillInfo.
 
   Returns:
-    A proto descriptor of the skill's parameter.
-
-  Raises:
-    AttributeError: a descriptor matching the parameter's full message name
-      cannot be found in the descriptor fileset.
+    The generated Python docstring.
   """
+  docstring: list[str] = [f"Skill class for {info.skill_proto.id}.\n"]
 
-  full_name = parameter_description.parameter_message_full_name
-  package, name = full_name.rsplit(".", 1)
-  for file in parameter_description.parameter_descriptor_fileset.file:
-    if file.package != package:
-      continue
-    for msg in file.message_type:
-      if msg.name != name:
-        continue
-      return msg
-  raise AttributeError(
-      f"Could not extract descriptor named {full_name} from "
-      "parameter description"
-  )
-
-
-def _gen_init_docstring(
-    info: provided.SkillInfo,
-    compatible_resources: dict[str, provided.ResourceList],
-) -> str:
-  """Generates documentation string for init function.
-
-  Args:
-    info: Skill information.
-    compatible_resources: Map from resource slot names to resources suitable for
-      that slot. It is used to determine whether a default value can be assigned
-      for resource parameters.
-
-  Returns:
-    Python documentation string.
-
-  Raises:
-    NameError: if a parameter name and resource name are the same and even
-      disambiguation adding a "_resource" suffix failed.
-  """
-  docstring: list[str] = [f"Skill class for {info.skill_proto.id} skill.\n"]
   # Expect 80 chars width
   is_first_line = True
   for description_line in textwrap.dedent(
@@ -272,11 +233,34 @@ def _gen_init_docstring(
     docstring += wrapped_lines
     is_first_line = False
 
-  # Tuple of: (have_default, name, default_value, [docstrings])
-  # We include have_default for sorting later, such that elements without
-  # default value appear first.
-  params = []
-  param_names = []
+  return "\n".join(docstring)
+
+
+def _gen_init_docstring(
+    info: provided.SkillInfo,
+    compatible_resources: dict[str, provided.ResourceList],
+) -> str:
+  """Generates the __init__ docstring for a skill class.
+
+  Args:
+    info: The skill's SkillInfo.
+    compatible_resources: Map from resource slot names to resources suitable for
+      that slot. It is used to determine whether a default value can be assigned
+      for resource parameters.
+
+  Returns:
+    The generated Python docstring.
+
+  Raises:
+    NameError: if a parameter name and resource name are the same and even
+      disambiguation adding a "_resource" suffix failed.
+  """
+  docstring: list[str] = [
+      f"Initializes an instance of the skill {info.skill_proto.id}."
+  ]
+
+  params: list[skill_utils.ParameterInformation] = []
+  param_names: list[str] = []
 
   if info.skill_proto.HasField("parameter_description"):
     param_defaults = info.create_param_message()
@@ -287,7 +271,7 @@ def _gen_init_docstring(
       )
 
     skill_params = skill_parameters.SkillParameters(
-        param_defaults, _get_descriptor(info.skill_proto.parameter_description)
+        param_defaults, info.skill_proto.parameter_description
     )
     params = skill_utils.extract_docstring_from_message(
         param_defaults,
@@ -296,13 +280,13 @@ def _gen_init_docstring(
     )
     param_names = [p.name for p in params]
 
-  return_values = []
+  return_values: list[tuple[str, str]] = []
   if info.skill_proto.HasField("return_value_description"):
     result_defaults = info.create_result_message()
 
     for field in result_defaults.DESCRIPTOR.fields:
       doc_string = info.get_result_field_comments(field.full_name)
-      return_values.append((field.name, [doc_string]))
+      return_values.append((field.name, doc_string))
 
     params.append(
         skill_utils.ParameterInformation(
@@ -310,6 +294,8 @@ def _gen_init_docstring(
             name="return_value_key",
             default=None,
             doc_string=["Blackboard key where to store the return value"],
+            message_full_name=None,
+            enum_full_name=None,
         )
     )
     param_names.append("return_value_key")
@@ -342,8 +328,15 @@ def _gen_init_docstring(
             name=param_name,
             default=None,
             doc_string=slot_docstring,
+            message_full_name=None,
+            enum_full_name=None,
         )
     )
+
+  skill_utils.append_used_proto_full_names(info.skill_name, params, docstring)
+
+  if not info.skill_proto.resource_selectors:
+    docstring.append("\nThis skill requires no resources.")
 
   # Generate actual docstring for arguments
   if params:
@@ -353,22 +346,18 @@ def _gen_init_docstring(
       docstring.append(f"    {p.name}:")
       for param_doc_string in p.doc_string:
         # Expect 80 chars width, subtract 8 for leading spaces in args string.
-        for line in textwrap.wrap(param_doc_string, 72):
+        for line in textwrap.wrap(param_doc_string.strip(), 72):
           docstring.append(f"        {line}")
       if p.has_default:
         docstring.append(f"        Default value: {p.default}")
 
-  if not info.skill_proto.resource_selectors:
-    docstring.append("This skill requires no resources")
-
   if return_values:
     docstring.append("\nReturns:")
-    for name, doc_strings in sorted(return_values):
+    for name, result_doc_string in sorted(return_values):
       docstring.append(f"    {name}:")
-      for result_doc_string in doc_strings:
-        # Expect 80 chars width, subtract 8 for leading spaces in args string.
-        for line in textwrap.wrap(result_doc_string, 72):
-          docstring.append(f"        {line}")
+      # Expect 80 chars width, subtract 8 for leading spaces in args string.
+      for line in textwrap.wrap(result_doc_string, 72):
+        docstring.append(f"        {line}")
 
   return "\n".join(docstring)
 
@@ -377,6 +366,7 @@ def _gen_init_params(
     info: provided.SkillInfo,
     compatible_resources: dict[str, provided.ResourceList],
     wrapper_classes: dict[str, Type[skill_utils.MessageWrapper]],
+    enum_classes: dict[str, Type[enum.IntEnum]],
 ) -> list[inspect.Parameter]:
   """Create argument typing information for a given skill info.
 
@@ -391,6 +381,7 @@ def _gen_init_params(
       for resource parameters.
     wrapper_classes: Map from proto message names to corresponding message
       wrapper classes.
+    enum_classes: Map from full enum names to corresponding enum classes.
 
   Returns:
     A dict mapping from field name to pythonic type.
@@ -413,10 +404,10 @@ def _gen_init_params(
     # Extract those fields from the default parameter proto which may contain
     # actual default values.
     skill_params = skill_parameters.SkillParameters(
-        param_defaults, _get_descriptor(info.skill_proto.parameter_description)
+        param_defaults, info.skill_proto.parameter_description
     )
     param_info = skill_utils.extract_parameter_information_from_message(
-        param_defaults, skill_params, wrapper_classes
+        param_defaults, skill_params, wrapper_classes, enum_classes
     )
     if param_info:
       params, param_names = map(list, zip(*param_info))
@@ -462,6 +453,7 @@ def _gen_init_fun(
     info: provided.SkillInfo,
     compatible_resources: dict[str, provided.ResourceList],
     wrapper_classes: dict[str, Type[skill_utils.MessageWrapper]],
+    enum_classes: dict[str, Type[enum.IntEnum]],
 ) -> Callable[[Any, Any], "GeneratedSkill"]:
   """Generate custom __init__ class method with proper auto-completion info.
 
@@ -472,6 +464,7 @@ def _gen_init_fun(
       for resource parameters.
     wrapper_classes: Map from proto message names to corresponding message
       wrapper classes.
+    enum_classes: Map from full enum names to corresponding enum classes.
 
   Returns:
     A function suitable to be used as __init__ function for a GeneratedSkill
@@ -500,7 +493,9 @@ def _gen_init_fun(
           inspect.Parameter.POSITIONAL_OR_KEYWORD,
           annotation="Skill_" + info.skill_name,
       )
-  ] + _gen_init_params(info, compatible_resources, wrapper_classes)
+  ] + _gen_init_params(
+      info, compatible_resources, wrapper_classes, enum_classes
+  )
   new_init_fun.__signature__ = inspect.Signature(params)
   new_init_fun.__annotations__ = collections.OrderedDict(
       [(p.name, p.annotation) for p in params]
@@ -531,12 +526,14 @@ def gen_skill_class(
     A new type for a GeneratedSkill sub-class.
   """
   nested_classes = []
-  enum_types = []
+  enum_descriptors = {}
   if info.skill_proto.HasField("parameter_description"):
     skill_utils.get_field_classes_to_alias(
-        info.parameter_descriptor(), info.message_classes, nested_classes
+        info.parameter_descriptor(),
+        info.message_classes,
+        nested_classes,
+        enum_descriptors,
     )
-    enum_types = info.parameter_descriptor().enum_types
 
   type_class = type(
       # E.g.: 'move_robot'
@@ -549,7 +546,7 @@ def gen_skill_class(
           ),
           # We use the __init__ documentation because that is shown in the
           # auto-completion tooltip, not __init__.__doc__.
-          "__doc__": _gen_init_docstring(info, compatible_resources),
+          "__doc__": _gen_class_docstring(info),
           # E.g.: 'intrinsic.solutions.skills.ai.intrinsic'.
           "__module__": skill_utils.module_for_generated_skill(
               info.package_name
@@ -557,16 +554,18 @@ def gen_skill_class(
       },
   )
 
-  wrapper_classes = skill_utils.update_message_class_modules(
+  wrapper_classes, enum_classes = skill_utils.update_message_class_modules(
       type_class,
       info.skill_name,
       info.package_name,
-      enum_types,
       nested_classes,
+      enum_descriptors,
       dict(info.skill_proto.parameter_description.parameter_field_comments),
   )
 
-  init_fun = _gen_init_fun(info, compatible_resources, wrapper_classes)
+  init_fun = _gen_init_fun(
+      info, compatible_resources, wrapper_classes, enum_classes
+  )
   type_class.__init__ = init_fun
 
   return type_class
@@ -780,8 +779,7 @@ class GeneratedSkill(provided.SkillBase):
       # If we have a default message, validate the composed parameters.
       if default_message:
         skill_params = skill_parameters.SkillParameters(
-            default_message,
-            _get_descriptor(self._info.skill_proto.parameter_description),
+            default_message, self._info.skill_proto.parameter_description
         )
         skill_utils.check_missing_fields_in_msg(
             skill_params,

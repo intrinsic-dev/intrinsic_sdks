@@ -18,6 +18,7 @@ import "intrinsic/world/proto/gripper_component.proto";
 import "intrinsic/world/proto/kinematics_component.proto";
 import "intrinsic/world/proto/object_world_refs.proto";
 import "intrinsic/world/proto/object_world_updates.proto";
+import "intrinsic/world/proto/outfeed_component.proto";
 import "intrinsic/world/proto/physics_component.proto";
 import "intrinsic/world/proto/robot_payload.proto";
 import "intrinsic/world/proto/sensor_component.proto";
@@ -280,6 +281,10 @@ message ObjectComponent {
   // set if this object is not a spawner resource.
   intrinsic_proto.world.SpawnerComponent spawner_component = 6;
 
+  // Properties for how this object removes products in simulation. Will not be
+  // set if this object is not an outfeed resource.
+  intrinsic_proto.world.OutfeedComponent outfeed_component = 8;
+
   // Configuration properties for this object if it is a gripper. Will not be
   // set if the object is not a gripper resource.
   intrinsic_proto.world.GripperComponent gripper_component = 7;
@@ -359,6 +364,10 @@ message KinematicObjectComponent {
   // In rare cases this can be empty, when there is no chain that the World
   // knows how to solve inside the Object.
   repeated IkSolver ik_solvers = 11;
+
+  // If set true then it indicates that the kinematics of this object have been
+  // updated.
+  optional bool are_kinematics_updated = 12;
 }
 
 // High-level world container. An Object is part of exactly one world, has

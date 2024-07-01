@@ -101,6 +101,16 @@ def intrinsic_sdks_deps_0():
 
     maybe(
         http_archive,
+        name = "com_google_googleapis",
+        urls = [
+            "https://github.com/googleapis/googleapis/archive/1c8d509c574aeab7478be1bfd4f2e8f0931cfead.tar.gz",
+        ],
+        sha256 = "b854ae17ddb933c249530f743db8d78df80905dfb42681255564a1d1921dfc3c",
+        strip_prefix = "googleapis-1c8d509c574aeab7478be1bfd4f2e8f0931cfead",
+    )
+
+    maybe(
+        http_archive,
         name = "rules_oci",
         sha256 = "686f871f9697e08877b85ea6c16c8d48f911bf466c3aeaf108ca0ab2603c7306",
         strip_prefix = "rules_oci-1.5.1",
@@ -135,6 +145,10 @@ def intrinsic_sdks_deps_0():
         sha256 = "2dc7254fc975bb40efcab799273c9330d7ed11f4b3263dcbf7328f5c6b067d3e",  # v3.23.1
         strip_prefix = "protobuf-2dca62f7296e5b49d729f7384f975cecb38382a0",  # v3.23.1
         urls = ["https://github.com/protocolbuffers/protobuf/archive/2dca62f7296e5b49d729f7384f975cecb38382a0.zip"],  # v3.23.1
+        patch_args = ["-p1"],
+        patches = [
+            Label("//intrinsic/production/external/patches:0012-Remove-exec-tools.patch"),
+        ],
     )
 
     # gRPC
@@ -147,6 +161,7 @@ def intrinsic_sdks_deps_0():
             Label("//intrinsic/production/external/patches:0005-Remove-competing-go-deps.patch"),
             Label("//intrinsic/production/external/patches:0007-Also-generate-pyi-files-grpc.patch"),
             Label("//intrinsic/production/external/patches:0011-Public-grpc_library-attr.patch"),
+            Label("//intrinsic/production/external/patches:0013-Remove-protobuf-ios-support.patch"),
         ],
         sha256 = "194dcaae20b7bcd9fc4fc9a1e091215207842ddb9a1df01419c7c55d3077979b",  # v1.56.0
         strip_prefix = "grpc-6e85620c7e258df79666a4743f862f2f82701c2d",  # v1.56.0
@@ -239,10 +254,10 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "com_google_absl_py",
-        sha256 = "0fb3a4916a157eb48124ef309231cecdfdd96ff54adf1660b39c0d4a9790a2c0",
-        strip_prefix = "abseil-py-1.4.0",
+        sha256 = "8a3d0830e4eb4f66c4fa907c06edf6ce1c719ced811a12e26d9d3162f8471758",
+        strip_prefix = "abseil-py-2.1.0",
         urls = [
-            "https://github.com/abseil/abseil-py/archive/refs/tags/v1.4.0.tar.gz",
+            "https://github.com/abseil/abseil-py/archive/refs/tags/v2.1.0.tar.gz",
         ],
     )
 
@@ -259,17 +274,7 @@ def intrinsic_sdks_deps_0():
     # C++ rules for pybind11
     maybe(
         http_archive,
-        name = "pybind11_abseil",
-        repo_mapping = {"@local_config_python": "@local_config_python"},
-        sha256 = "1496b112e86416e2dcf288569a3e7b64f3537f0b18132224f492266e9ff76c44",
-        strip_prefix = "pybind11_abseil-202402.0",
-        urls = ["https://github.com/pybind/pybind11_abseil/archive/refs/tags/v202402.0.tar.gz"],
-    )
-
-    maybe(
-        http_archive,
         name = "pybind11_bazel",
-        repo_mapping = {"@local_config_python": "@local_config_python"},
         sha256 = "e2ba5f81f3bf6a3fc0417448d49389cc7950bebe48c42c33dfeb4dd59859b9a4",
         strip_prefix = "pybind11_bazel-2.11.1.bzl.2",
         urls = ["https://github.com/pybind/pybind11_bazel/archive/refs/tags/v2.11.1.bzl.2.tar.gz"],
@@ -277,18 +282,8 @@ def intrinsic_sdks_deps_0():
 
     maybe(
         http_archive,
-        name = "pybind11_protobuf",
-        repo_mapping = {"@local_config_python": "@local_config_python"},
-        sha256 = "abf2d5704d9fb2c5e66e6333667bf5f92aaaac74c05d704a84a7478d91dc6663",
-        strip_prefix = "pybind11_protobuf-5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78",
-        urls = ["https://github.com/pybind/pybind11_protobuf/archive/5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78.tar.gz"],  #  Jun 19, 2023
-    )
-
-    maybe(
-        http_archive,
         name = "pybind11",
         build_file = "@pybind11_bazel//:pybind11.BUILD",
-        repo_mapping = {"@local_config_python": "@local_config_python"},
         sha256 = "b011a730c8845bfc265f0f81ee4e5e9e1d354df390836d2a25880e123d021f89",
         strip_prefix = "pybind11-2.11.1",
         urls = ["https://github.com/pybind/pybind11/archive/v2.11.1.zip"],  #  Jul 17, 2023

@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
-	projectdiscoverygrpcpb "intrinsic/frontend/cloud/api/projectdiscovery_api_go_grpc_proto"
+	projectdiscoverygrpcpb "intrinsic/frontend/cloud_portal/api/projectdiscovery_api_go_grpc_proto"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 	"intrinsic/tools/inctl/auth"
 	"intrinsic/tools/inctl/util/orgutil"
@@ -45,8 +45,8 @@ var loginParams *viper.Viper
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Logs in user into project",
-	Long:  "Logs in user into project to allow interactions with solutions.",
+	Short: "Logs in user into Flowstate",
+	Long:  "Logs in user into Flowstate to allow interactions with solutions.",
 	Args:  cobra.NoArgs,
 	RunE:  loginCmdE,
 
@@ -121,7 +121,7 @@ func queryProjectForAPIKey(ctx context.Context, apiKey string) (string, error) {
 			fmt.Printf("Could not find the project for this token. Please restart the login process and make sure to provide the exact key shown by the portal.\n")
 			return "", fmt.Errorf("validate token")
 		}
-		return "", fmt.Errorf("request to list clusters failed: %w", err)
+		return "", err
 	}
 
 	return resp.GetProject(), nil
@@ -160,7 +160,7 @@ func loginCmdE(cmd *cobra.Command, _ []string) (err error) {
 	if projectName == "" {
 		projectName, err = queryProject(cmd.Context(), apiKey)
 		if err != nil {
-			return err
+			return fmt.Errorf("query project: %w", err)
 		}
 		if err := authStore.WriteOrgInfo(&auth.OrgInfo{Organization: orgName, Project: projectName}); err != nil {
 			return fmt.Errorf("store org info: %w", err)
@@ -197,6 +197,7 @@ func init() {
 	flags.Bool(keyBatch, false, "Suppresses command prompts and assume Yes or default as an answer. Use with shell scripts.")
 	flags.StringP(keyPortal, "", "portal.intrinsic.ai", "Hostname of the intrinsic portal to authenticate with.")
 	flags.MarkHidden(keyPortal)
+	flags.MarkHidden(orgutil.KeyProject)
 
 	loginParams = viperutil.BindToViper(flags, viperutil.BindToListEnv(orgutil.KeyProject, orgutil.KeyOrganization))
 }

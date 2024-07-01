@@ -8,21 +8,6 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "intrinsic/logging/proto/log_item.proto";
 
-// Note: We have the nesting here to emulate class enum functionality.
-message LogItemView {
-  enum LogItemViewEnum {
-    // The default / unset value.
-    // The API will default to the FULL view.
-    UNSPECIFIED = 0;
-
-    // Metadata and context, no payloads.
-    BASIC = 1;
-
-    // All data, including blobs.
-    FULL = 2;
-  }
-}
-
 message LogRequest {
   intrinsic_proto.data_logger.LogItem item = 1;
 }
@@ -57,6 +42,9 @@ message LogOptions {
   // priority items are uploaded. This is an int32 parameter. Larger the value,
   // higher the priority.
   optional int32 priority = 5;
+
+  // If set to 'true', logs are retained on disk via timescaledb.
+  optional bool retain_on_disk = 6;
 }
 
 message ListLogSourcesResponse {

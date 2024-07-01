@@ -141,6 +141,7 @@ proto_library(
         ":kinematics_component_proto",
         ":object_world_refs_proto",
         ":object_world_updates_proto",
+        ":outfeed_component_proto",
         ":physics_component_proto",
         ":robot_payload_proto",
         ":sensor_component_proto",
@@ -189,6 +190,7 @@ proto_library(
         ":geometry_component_proto",
         ":gripper_component_proto",
         ":object_world_refs_proto",
+        ":outfeed_component_proto",
         ":physics_component_proto",
         ":robot_payload_proto",
         ":simulation_component_proto",
@@ -218,6 +220,7 @@ go_proto_library(
         ":geometry_component_go_proto",
         ":gripper_component_go_proto",
         ":robot_payload_go_proto",
+        ":outfeed_component_go_proto",
         ":physics_component_go_proto",
         ":simulation_component_go_proto",
         ":spawner_component_go_proto",
@@ -303,6 +306,32 @@ go_proto_library(
         "//intrinsic/math/proto:vector3_go_proto",
     ],
     deps = [":spawner_component_proto"],
+)
+
+proto_library(
+    name = "outfeed_component_proto",
+    srcs = ["outfeed_component.proto"],
+    deps = [
+        "//intrinsic/math/proto:vector3_proto",
+    ],
+)
+
+py_proto_library(
+    name = "outfeed_component_py_pb2",
+    deps = [":outfeed_component_proto"],
+)
+
+cc_proto_library(
+    name = "outfeed_component_cc_proto",
+    deps = [":outfeed_component_proto"],
+)
+
+go_proto_library(
+    name = "outfeed_component_go_proto",
+    go_deps = [
+        "//intrinsic/math/proto:vector3_go_proto",
+    ],
+    deps = [":outfeed_component_proto"],
 )
 
 proto_library(
@@ -405,6 +434,7 @@ proto_library(
         ":kinematics_component_proto",
         ":object_world_refs_proto",
         ":object_world_service_proto",
+        ":outfeed_component_proto",
         ":physics_component_proto",
         ":simulation_component_proto",
         ":spawner_component_proto",
