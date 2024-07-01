@@ -1,5 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
 
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
+
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
@@ -64,6 +66,15 @@ cc_library(
         ":realtime_status",
         "//intrinsic/util/status:status_macros",
         "@com_google_absl//absl/base:core_headers",
+    ],
+)
+
+go_binary(
+    name = "init_hwm",
+    srcs = ["init_hwm.go"],
+    deps = [
+        "//intrinsic/production:intrinsic",
+        "@com_github_golang_glog//:go_default_library",
     ],
 )
 
@@ -217,6 +228,22 @@ cc_library(
 cc_library(
     name = "current_cycle",
     hdrs = ["current_cycle.h"],
+)
+
+cc_library(
+    name = "async_buffer",
+    hdrs = ["async_buffer.h"],
+)
+
+cc_test(
+    name = "async_buffer_test",
+    srcs = ["async_buffer_test.cc"],
+    deps = [
+        ":async_buffer",
+        "//intrinsic/icon/release:source_location",
+        "//intrinsic/util/testing:gtest_wrapper",
+        "@com_google_absl//absl/strings",
+    ],
 )
 
 cc_library(

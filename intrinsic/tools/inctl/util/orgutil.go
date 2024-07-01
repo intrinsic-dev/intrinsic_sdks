@@ -20,8 +20,6 @@ const (
 	KeyProject = "project"
 	// KeyOrganization is used as central flag name for passing an organization name to inctl.
 	KeyOrganization = "org"
-	// keyProjectCompat exists for compatibility with code that used INTRINSIC_GCP_PROJECT
-	keyProjectCompat = "gcp_project"
 )
 
 var (
@@ -110,17 +108,13 @@ func makeOrgNotFound(inner error, org string) error {
 }
 
 // PreRunOrganization provides the organization/project flag handling as PersistentPreRunE of a cobra command.
-// This is done automatically with the wrap function.
+// This is done automatically with the WrapCmd() function.
 func PreRunOrganization(cmd *cobra.Command, vipr *viper.Viper) error {
 	projectFlag := cmd.PersistentFlags().Lookup(KeyProject)
 	orgFlag := cmd.PersistentFlags().Lookup(KeyOrganization)
 
 	org := vipr.GetString(KeyOrganization)
 	project := vipr.GetString(KeyProject)
-	if project == "" {
-		project = vipr.GetString(keyProjectCompat)
-		vipr.Set(KeyProject, project)
-	}
 
 	if (project == "" && org == "") || (project != "" && org != "") {
 		return errNotXor
@@ -195,8 +189,7 @@ func WrapCmd(cmd *cobra.Command, vipr *viper.Viper) *cobra.Command {
 		return nil
 	}
 
-	viperutil.BindFlags(vipr, cmd.PersistentFlags(), viperutil.BindToListEnv(KeyProject, KeyOrganization))
-	vipr.BindEnv(keyProjectCompat)
+	viperutil.BindFlags(vipr, cmd.PersistentFlags(), viperutil.BindToListEnv(KeyOrganization))
 
 	return cmd
 }
