@@ -32,7 +32,7 @@ proto_library(
     srcs = ["collision_settings.proto"],
     deps = [
         ":collision_action_proto",
-        "//intrinsic/world/proto:object_world_refs_proto",
+        ":object_world_refs_proto",
     ],
 )
 
@@ -140,6 +140,7 @@ proto_library(
         ":object_world_refs_proto",
         ":object_world_updates_proto",
         ":physics_component_proto",
+        ":robot_payload_proto",
         ":sensor_component_proto",
         ":simulation_component_proto",
         ":spawner_component_proto",
@@ -187,6 +188,7 @@ proto_library(
         ":gripper_component_proto",
         ":object_world_refs_proto",
         ":physics_component_proto",
+        ":robot_payload_proto",
         ":simulation_component_proto",
         ":spawner_component_proto",
         "//intrinsic/icon/proto:cart_space_proto",
@@ -203,6 +205,25 @@ cc_proto_library(
 
 py_proto_library(
     name = "object_world_updates_py_pb2",
+    deps = [":object_world_updates_proto"],
+)
+
+go_proto_library(
+    name = "object_world_updates_go_proto",
+    go_deps = [
+        ":collision_action_go_proto",
+        ":collision_settings_go_proto",
+        ":geometry_component_go_proto",
+        ":gripper_component_go_proto",
+        ":robot_payload_go_proto",
+        ":physics_component_go_proto",
+        ":simulation_component_go_proto",
+        ":spawner_component_go_proto",
+        ":object_world_refs_go_proto",
+        "//intrinsic/icon/proto:cart_space_go_proto",
+        "//intrinsic/kinematics/types:joint_limits_go_proto",
+        "//intrinsic/math/proto:pose_go_proto",
+    ],
     deps = [":object_world_updates_proto"],
 )
 
@@ -323,6 +344,39 @@ proto_library(
         "//intrinsic/math/proto:quaternion_proto",
         "//intrinsic/math/proto:vector3_proto",
     ],
+)
+
+proto_library(
+    name = "robot_payload_proto",
+    srcs = ["robot_payload.proto"],
+    deps = [
+        "//intrinsic/math/proto:matrix_proto",
+        "//intrinsic/math/proto:pose_proto",
+    ],
+)
+
+py_proto_library(
+    name = "robot_payload_py_pb2",
+    deps = [":robot_payload_proto"],
+)
+
+go_proto_library(
+    name = "robot_payload_go_proto",
+    go_deps = [
+        "//intrinsic/math/proto:matrix_go_proto",
+        "//intrinsic/math/proto:pose_go_proto",
+    ],
+    deps = [":robot_payload_proto"],
+)
+
+go_proto_library(
+    name = "entity_search_go_proto",
+    deps = [":entity_search_proto"],
+)
+
+cc_proto_library(
+    name = "robot_payload_cc_proto",
+    deps = [":robot_payload_proto"],
 )
 
 cc_proto_library(

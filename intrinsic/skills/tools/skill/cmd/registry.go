@@ -31,34 +31,21 @@ type PushOptions struct {
 	Transferer imagetransfer.Transferer
 }
 
-func imageSpec(image containerregistry.Image, imageName string, opts PushOptions) (*imagepb.Image, error) {
-	digest, err := image.Digest()
-	if err != nil {
-		return nil, fmt.Errorf("could not get the sha256 of the image: %v", err)
-	}
-	return &imagepb.Image{
-		Registry:     strings.TrimSuffix(opts.Registry, "/"),
-		Name:         imageName,
-		Tag:          "@" + digest.String(),
-		AuthUser:     opts.AuthUser,
-		AuthPassword: opts.AuthPwd,
-	}, nil
-}
-
 func pushBuildOrArchiveTypes(image containerregistry.Image, imageName string, opts PushOptions) (*imagepb.Image, error) {
-	registry := strings.TrimSuffix(opts.Registry, "/")
-	if len(registry) == 0 {
-		return nil, fmt.Errorf("registry is empty")
+	reg := imageutils.RegistryOptions{
+		URI:        opts.Registry,
+		Transferer: opts.Transferer,
+		BasicAuth: imageutils.BasicAuth{
+			User: opts.AuthUser,
+			Pwd:  opts.AuthPwd,
+		},
+	}
+	imgOpts, err := imageutils.WithDefaultTag(imageName)
+	if err != nil {
+		return nil, fmt.Errorf("could not create a tag for the image %q: %v", imageName, err)
 	}
 
-	if err := imageutils.PushImage(registry, image, imageName, opts.Transferer); err != nil {
-		return nil, fmt.Errorf("could not push the image to registry %q: %v", registry, err)
-	}
-	imgpb, err := imageSpec(image, imageName, opts)
-	if err != nil {
-		return nil, fmt.Errorf("could not create image spec: %v", err)
-	}
-	return imgpb, nil
+	return imageutils.PushImage(image, imgOpts, reg)
 }
 
 // imagePbFromRef returns an Image proto constructed from the target and
@@ -159,51 +146,6 @@ func PushSkillFromBytes(archive []byte, opts PushOptions) (*imagepb.Image, error
 		return nil, fmt.Errorf("could not extract labels from image object: %v", err)
 	}
 	imgpb, err := pushBuildOrArchiveTypes(image, installerParams.ImageName, opts)
-	if err != nil {
-		return nil, err
-	}
-	return imgpb, err
-}
-
-// PushResource is a helper function that takes a target string and pushes the
-// resource image to the container registry.
-//
-// Returns the image.
-func PushResource(target string, imageName string, opts PushOptions) (*imagepb.Image, error) {
-	targetType := imageutils.TargetType(opts.Type)
-	if targetType != imageutils.Archive && targetType != imageutils.Image {
-		return nil, fmt.Errorf("type must be in {%s,%s}", imageutils.Archive, imageutils.Image)
-	}
-
-	image, err := imageutils.GetImage(target, targetType, opts.Transferer)
-	if err != nil {
-		return nil, fmt.Errorf("could not read image: %v", err)
-	}
-	imgpb, err := push(target, image, imageName, opts)
-	if err != nil {
-		return nil, err
-	}
-	return imgpb, err
-}
-
-// PushResourceFromBytes is a helper function that takes an image archive file
-// as a byte array and pushes the resource image to the container registry.
-//
-// Returns the image.
-func PushResourceFromBytes(archive []byte, imageName string, opts PushOptions) (*imagepb.Image, error) {
-	targetType := imageutils.TargetType(opts.Type)
-	if targetType != imageutils.Archive {
-		return nil, fmt.Errorf("type must be in {%s}", imageutils.Archive)
-	}
-
-	thunk := func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewBuffer(archive)), nil
-	}
-	image, err := tarball.Image(thunk, nil)
-	if err != nil {
-		return nil, fmt.Errorf("could not create tarball image from byte array: %v", err)
-	}
-	imgpb, err := pushBuildOrArchiveTypes(image, imageName, opts)
 	if err != nil {
 		return nil, err
 	}

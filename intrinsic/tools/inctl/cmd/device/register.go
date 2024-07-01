@@ -33,6 +33,7 @@ var (
 	privateDevice = false
 	replaceDevice = false
 	noWait        = false
+	noUpdate      = false
 )
 
 func validHostname(hostname string) (int, bool) {
@@ -124,7 +125,8 @@ func waitForStatusAvailable(ctx context.Context, client projectclient.AuthedClie
 		}
 
 		// StatusBadGateway is expected when the control plane isn't up yet.
-		if resp.StatusCode != http.StatusBadGateway {
+		// StatusNotFound is expected when a worker node isn't up yet.
+		if resp.StatusCode != http.StatusBadGateway && resp.StatusCode != http.StatusNotFound {
 			return fmt.Errorf("IPC did not offer status. http code: %v", resp.StatusCode)
 		}
 
@@ -204,13 +206,14 @@ var registerCmd = &cobra.Command{
 			return fmt.Errorf("failed to marshal config: %w", err)
 		}
 		data := shared.ConfigureData{
-			Hostname: hostname,
-			Config:   marshalled,
-			Role:     deviceRole,
-			Cluster:  clusterName,
-			Private:  privateDevice,
-			Region:   deviceRegion,
-			Replace:  replaceDevice,
+			Hostname:   hostname,
+			Config:     marshalled,
+			Role:       deviceRole,
+			Cluster:    clusterName,
+			Private:    privateDevice,
+			Region:     deviceRegion,
+			Replace:    replaceDevice,
+			AutoUpdate: !noUpdate,
 		}
 		if testID := os.Getenv("INCTL_CREATED_BY_TEST"); testID != "" {
 			// This is an automated test.
@@ -262,4 +265,5 @@ func init() {
 	registerCmd.Flags().StringVarP(&deviceRegion, "region", "", "unspecified", "This can be used for inventory tracking")
 	registerCmd.Flags().BoolVarP(&replaceDevice, replaceKey, "", false, "If set to 'true', an existing cluster with the same name will be replaced.\nThis is equivalent to calling 'inctl cluster delete' first")
 	registerCmd.Flags().BoolVarP(&noWait, "no-wait", "", false, "Set to true to avoid waiting for the cluster initialization.")
+	registerCmd.Flags().BoolVarP(&noUpdate, "no-update", "", false, "Do not enroll the cluster into automatic updates.")
 }
