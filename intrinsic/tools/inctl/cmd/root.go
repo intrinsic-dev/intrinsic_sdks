@@ -29,6 +29,8 @@ const (
 	ClusterCmdName = "cluster"
 	// ProcessCmdName is the name of the `inctl process` command.
 	ProcessCmdName = "process"
+	// ServiceCmdName is the name of the `inctl service` command.
+	ServiceCmdName = "service"
 	// SolutionCmdName is the name of the `inctl solution` command.
 	SolutionCmdName = "solution"
 	// SolutionsCmdName is the alias for the `inctl solution` command.
@@ -40,6 +42,8 @@ const (
 var (
 	// FlagOutput holds the value of the --output flag.
 	FlagOutput = printer.TextOutputFormat
+
+	// FlagPrintTrace prints the trace identifier to stderr on exit.
 )
 
 // RootCmd is the top level command of inctl.

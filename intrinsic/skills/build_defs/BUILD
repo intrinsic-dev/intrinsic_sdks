@@ -1,7 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
 
-load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -19,9 +19,6 @@ bzl_library(
     deps = [
         ":manifest_bzl",
         "//intrinsic/util/proto/build_defs:descriptor_set",
-        "@bazel_skylib//lib:dicts",
-        "@io_bazel_rules_docker//container",
-        "@io_bazel_rules_docker//lang:image",
     ],
 )
 
@@ -30,6 +27,7 @@ go_binary(
     srcs = ["gen_skill_id.go"],
     visibility = ["//visibility:public"],
     deps = [
+        "//intrinsic/assets:idutils",
         "//intrinsic/production:intrinsic",
         "//intrinsic/skills/proto:skill_manifest_go_proto",
         "//intrinsic/util/proto:protoio",

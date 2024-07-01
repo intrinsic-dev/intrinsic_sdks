@@ -2,9 +2,9 @@
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
-load("//bazel:go_macros.bzl", "go_proto_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("//bazel:go_macros.bzl", "go_proto_library")
 
 package(
     default_visibility = [
@@ -223,6 +223,7 @@ proto_library(
     srcs = ["joint_space.proto"],
     deps = [
         "//intrinsic/kinematics/types:dynamic_limits_check_mode_proto",
+        "//intrinsic/skills/proto:skill_parameter_metadata_proto",
         "@com_google_protobuf//:duration_proto",
     ],
 )

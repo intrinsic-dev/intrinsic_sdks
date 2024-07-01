@@ -4,13 +4,18 @@
 package cmdutils
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/v1/google"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"intrinsic/assets/imagetransfer"
 	"intrinsic/assets/imageutils"
 	"intrinsic/tools/inctl/util/orgutil"
 )
@@ -46,6 +51,8 @@ const (
 	KeyManifestFile = "manifest_file"
 	// KeyManifestTarget is the build target to the skill manifest.
 	KeyManifestTarget = "manifest_target"
+	// KeyOrgPrivate is the name of the org-private flag.
+	KeyOrgPrivate = "org_private"
 	// KeyRegistry is the name of the registry flag.
 	KeyRegistry = "registry"
 	// KeyReleaseNotes is the name of the release notes flag.
@@ -203,6 +210,16 @@ func (cf *CmdFlags) GetFlagManifestTarget() string {
 	return cf.GetString(KeyManifestTarget)
 }
 
+// AddFlagOrgPrivate adds a flag for marking a released asset as private to the organization.
+func (cf *CmdFlags) AddFlagOrgPrivate() {
+	cf.OptionalBool(KeyOrgPrivate, false, "Whether this asset should be private to the organization that owns it.")
+}
+
+// GetFlagOrgPrivate gets the value of the org_private flag added by AddFlagOrgPrivate.
+func (cf *CmdFlags) GetFlagOrgPrivate() bool {
+	return cf.GetBool(KeyOrgPrivate)
+}
+
 // AddFlagsProjectOrg adds both the project and org flag, including the necessary handling.
 func (cf *CmdFlags) AddFlagsProjectOrg() {
 	// While WrapCmd returns the pointer to make it inline, it's modifying, so we can use it here.
@@ -212,6 +229,11 @@ func (cf *CmdFlags) AddFlagsProjectOrg() {
 // AddFlagProject adds a flag for the GCP project.
 func (cf *CmdFlags) AddFlagProject() {
 	cf.RequiredEnvString(orgutil.KeyProject, "", "The Google Cloud Platform (GCP) project to use.")
+}
+
+// AddFlagProjectOptional adds an optional flag for the GCP project.
+func (cf *CmdFlags) AddFlagProjectOptional() {
+	cf.OptionalEnvString(orgutil.KeyProject, "", "The Google Cloud Platform (GCP) project to use.")
 }
 
 // GetFlagProject gets the value of the project flag added by AddFlagProject.
@@ -496,4 +518,37 @@ func parseNonNegativeDuration(durationStr string) (time.Duration, error) {
 		return 0, fmt.Errorf("duration must not be negative, but got %q", durationStr)
 	}
 	return duration, nil
+}
+
+func (cf *CmdFlags) createBasicAuth() *imageutils.BasicAuth {
+	user, pwd := cf.GetFlagsRegistryAuthUserPassword()
+	if len(user) == 0 || len(pwd) == 0 {
+		return nil
+	}
+	return &imageutils.BasicAuth{
+		User: user,
+		Pwd:  pwd,
+	}
+}
+
+func (cf *CmdFlags) authOpt() remote.Option {
+	if auth := cf.createBasicAuth(); auth != nil {
+		return remote.WithAuth(authn.FromConfig(authn.AuthConfig{
+			Username: auth.User,
+			Password: auth.Pwd,
+		}))
+	}
+	return remote.WithAuthFromKeychain(google.Keychain)
+}
+
+// CreateRegistryOpts creates registry options for processing images.
+func (cf *CmdFlags) CreateRegistryOpts(ctx context.Context) imageutils.RegistryOptions {
+	opts := imageutils.RegistryOptions{
+		Transferer: imagetransfer.RemoteTransferer(remote.WithContext(ctx), cf.authOpt()),
+		URI:        cf.GetFlagRegistry(),
+	}
+	if auth := cf.createBasicAuth(); auth != nil {
+		opts.BasicAuth = *auth
+	}
+	return opts
 }

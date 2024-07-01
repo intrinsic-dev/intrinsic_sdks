@@ -2,21 +2,18 @@
 
 """Build rules for creating Skill artifacts."""
 
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_python//python:defs.bzl", "py_binary")
+load("//bazel:container.bzl", "container_image")
+load("//bazel:python_oci_image.bzl", "python_oci_image")
 load(
     "//intrinsic/skills/build_defs:manifest.bzl",
     "SkillManifestInfo",
     _skill_manifest = "skill_manifest",
 )
 load("//intrinsic/util/proto/build_defs:descriptor_set.bzl", "proto_source_code_info_transitive_descriptor_set")
-load("@io_bazel_rules_docker//container:container.bzl", _container = "container")
-load("@io_bazel_rules_docker//lang:image.bzl", "app_layer")
-load("@bazel_skylib//lib:dicts.bzl", "dicts")
 
 skill_manifest = _skill_manifest
-
-# This is the container_pull (rules_docker) base image externally.
-base_image = "@distroless_base_amd64//image"
 
 def _gen_cc_skill_service_main_impl(ctx):
     output_file = ctx.actions.declare_file(ctx.label.name + ".cc")
@@ -238,29 +235,32 @@ _skill_service_config_manifest = rule(
     },
 )
 
+SkillIdInfo = provider(
+    "Id for a skill",
+    fields = {
+        "id_filename": "The path to the file containing the skill ID.",
+    },
+)
+
 def _skill_id_impl(ctx):
     manifest_pbbin_file = ctx.attr.manifest[SkillManifestInfo].manifest_binary_file
-    outputfile = ctx.actions.declare_file(ctx.label.name + ".pbbin")
 
     arguments = ctx.actions.args().add(
         "--manifest_pbbin_filename",
-        manifest_pbbin_file.path,
+        manifest_pbbin_file,
     ).add(
-        "--output_pbbin_filename",
-        outputfile.path,
+        "--out_id_filename",
+        ctx.outputs.id_filename,
     )
 
     ctx.actions.run(
-        outputs = [outputfile],
+        outputs = [ctx.outputs.id_filename],
         inputs = [manifest_pbbin_file],
         executable = ctx.executable._skill_id_gen,
         arguments = [arguments],
     )
 
-    return DefaultInfo(
-        files = depset([outputfile]),
-        runfiles = ctx.runfiles(files = [outputfile]),
-    )
+    return SkillIdInfo(id_filename = ctx.outputs.id_filename)
 
 _skill_id = rule(
     implementation = _skill_id_impl,
@@ -274,73 +274,47 @@ _skill_id = rule(
             mandatory = True,
             providers = [SkillManifestInfo],
         ),
+        "id_filename": attr.output(
+            mandatory = True,
+            doc = "The path to the file containing the skill ID.",
+        ),
     },
+    provides = [SkillIdInfo],
 )
 
-def _skill_impl(ctx):
-    skill_service_config_file = ctx.attr.skill_service_config[DefaultInfo].files.to_list()[0]
-    skill_id_file = ctx.attr.skill_id[DefaultInfo].files.to_list()[0]
-    skill_service_binary_file = ctx.executable.skill_service_binary
-    image_name = ctx.attr.name
-
-    files = [
-        skill_service_config_file,
-    ]
-    if ctx.attr.include_binary_in_final_layer:
-        files.append(skill_service_binary_file)
-
-    symlinks = {
-        "/skills/skill_service_config.proto.bin": skill_service_config_file.short_path,
-        "/skills/skill_service": skill_service_binary_file.short_path,
+def build_symlinks(skill_service_name, skill_service_config_name):
+    return {
+        "/skills/skill_service_config.proto.bin": native.package_name() + "/" + skill_service_config_name + ".pbbin",
+        "/skills/skill_service": native.package_name() + "/" + skill_service_name,
     }
 
-    labels = {
-        "ai.intrinsic.skill-id": "@" + skill_id_file.path,
-        "ai.intrinsic.skill-image-name": image_name,
-    }
-
-    return _container.image.implementation(
-        ctx,
-        compression_options = ["--fast"],
-        experimental_tarball_format = "compressed",
-        directory = "/skills",
-        files = files,
-        symlinks = symlinks,
-        # container.image.implementation utilizes three related args for labels:
-        # `labels`, `label_files`, and `label_file_strings`. For any label where
-        # the value of the label will be the content of a file, the label value
-        # must be the filepath pre-pended with `@`, and the file dependency must
-        # be passed via `label_files`, furthermore the string file path must be
-        # passing in `label_file_strings`. See _container.image.implementation()
-        # for further documentation.
-        labels = labels,
-        label_files = [skill_id_file],
-        label_file_strings = [skill_id_file.path],
+# Generate a file containing the Docker image labels. This only works for rules_oci, not
+# rules_docker in google3, as rules_docker does not support a file containing labels as input
+# to docker_build.
+def _skill_labels_impl(ctx):
+    skill_id = ctx.attr.skill_id[SkillIdInfo]
+    outputfile = ctx.actions.declare_file(ctx.label.name + ".labels")
+    cmd = """
+    echo "ai.intrinsic.asset-id=$(cat {id_filename})" > {output}""".format(
+        id_filename = skill_id.id_filename.path,
+        output = outputfile.path,
+    )
+    ctx.actions.run_shell(
+        inputs = [skill_id.id_filename],
+        outputs = [outputfile],
+        command = cmd,
     )
 
-_skill = rule(
-    implementation = _skill_impl,
-    attrs = dicts.add(_container.image.attrs.items(), {
-        "skill_service_binary": attr.label(
-            executable = True,
-            mandatory = True,
-            cfg = "target",
-        ),
+    return DefaultInfo(files = depset([outputfile]))
+
+_skill_labels = rule(
+    implementation = _skill_labels_impl,
+    attrs = {
         "skill_id": attr.label(
             mandatory = True,
+            providers = [SkillIdInfo],
         ),
-        "skill_service_config": attr.label(
-            mandatory = True,
-        ),
-        "include_binary_in_final_layer": attr.bool(
-            doc = "If set to true, will copy the file specified by the 'skill_service_binary' attribute into the final layer. This is a mitigation for b/320446636.",
-            mandatory = True,
-        ),
-    }.items()),
-    executable = True,
-    outputs = _container.image.outputs,
-    toolchains = ["@io_bazel_rules_docker//toolchains/docker:toolchain_type"],
-    cfg = _container.image.cfg,
+    },
 )
 
 def cc_skill(
@@ -403,6 +377,7 @@ def cc_skill(
     _skill_id(
         name = skill_id_name,
         manifest = manifest,
+        id_filename = skill_id_name + ".id.txt",
         testonly = kwargs.get("testonly"),
         visibility = ["//visibility:private"],
         tags = ["manual", "avoid_dep"],
@@ -418,14 +393,27 @@ def cc_skill(
         tags = ["manual", "avoid_dep"],
     )
 
-    _skill(
-        name = name,
-        base = Label(base_image),
-        skill_service_binary = skill_service_name,
-        include_binary_in_final_layer = True,
-        skill_service_config = skill_service_config_name,
+    files = [
+        skill_service_config_name,
+        skill_service_name,
+    ]
+
+    labels = "_%s_labels" % name
+    _skill_labels(
+        name = labels,
         skill_id = skill_id_name,
-        data_path = "/",  # NB. We set data_path here because there is no override for the container_image attr.
+        visibility = ["//visibility:private"],
+        tags = ["manual", "avoid_dep"],
+    )
+
+    container_image(
+        name = name,
+        base = Label("@distroless_base_amd64_oci"),
+        directory = "/skills",
+        files = files,
+        data_path = "/",
+        labels = labels,
+        symlinks = build_symlinks(skill_service_name, skill_service_config_name),
         **kwargs
     )
 
@@ -487,6 +475,7 @@ def py_skill(
     _skill_id(
         name = skill_id_name,
         manifest = manifest,
+        id_filename = skill_id_name + ".id.txt",
         testonly = kwargs.get("testonly"),
         visibility = ["//visibility:private"],
         tags = ["manual", "avoid_dep"],
@@ -498,40 +487,43 @@ def py_skill(
         deps = deps,
         manifest = manifest,
         python_version = "PY3",
-        exec_compatible_with = ["@io_bazel_rules_docker//platforms:run_in_container"],
         testonly = kwargs.get("testonly"),
         visibility = ["//visibility:private"],
         tags = ["manual", "avoid_dep"],
     )
 
-    skill_layer_name = "_%s_intrinsic_skill_layer" % name
-    app_layer(
-        name = skill_layer_name,
-        base = Label("@py3_image_base//image"),
-        entrypoint = ["/usr/bin/python"],
-        binary = binary_name,
-        data_path = "/",
-        directory = "/skills",
-        # The targets of the symlinks in the symlink layers are relative to the
-        # workspace directory under the app directory. Thus, create an empty
-        # workspace directory to ensure the symlinks are valid. See
-        # https://github.com/bazelbuild/rules_docker/issues/161 for details.
-        create_empty_workspace_dir = True,
-        testonly = kwargs.get("testonly"),
-        visibility = ["//visibility:private"],
-        tags = ["manual", "avoid_dep"],
-    )
+    # BUG fully-qualified imports on Bzlmod: https://github.com/bazelbuild/rules_python/issues/1679
+    binary_path = "/" + native.package_name() + "/" + binary_name
+    binary_path_with_repo = "/ai_intrinsic_sdks~override/" + binary_path
+    symlinks = {
+        "/skills/skill_service_config.proto.bin": "/" + native.package_name() + "/" + skill_service_config_name + ".pbbin",
+        "/skills/skill_service": binary_path_with_repo,
+        binary_path_with_repo: binary_path,
+        binary_path_with_repo + ".py": binary_path + ".py",
+    }
 
-    _skill(
-        name = name,
-        base = skill_layer_name,
-        skill_service_binary = binary_name,
-        # In contrast to the C++ skill rule, we use the "skill_layer_name" app_layer as a base image
-        # here. To prevent copying a (potentially) large binary twice into a container image, set
-        # this attribute to false. See the detailed analysis in b/320446636.
-        include_binary_in_final_layer = False,
-        skill_service_config = skill_service_config_name,
+    labels_name = "_%s_labels" % name
+    _skill_labels(
+        name = labels_name,
         skill_id = skill_id_name,
-        data_path = "/",  # NB. We set data_path here because there is no override for the container_image attr.
-        **kwargs
+        visibility = ["//visibility:private"],
+        tags = ["manual", "avoid_dep"],
+    )
+
+    pkg_tar(
+        name = name + "_files_tar",
+        srcs = [skill_service_config_name],
+        include_runfiles = False,
+        strip_prefix = "/external/ai_intrinsic_sdks~override",
+        tags = ["manual", "avoid_dep"],
+    )
+
+    python_oci_image(
+        name = name,
+        base = "@distroless_python3",
+        binary = binary_name,
+        extra_tars = [name + "_files_tar"],
+        symlinks = symlinks,
+        workdir = "/",
+        labels = labels_name,
     )

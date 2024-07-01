@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, Union, cast
 import grpc
 from intrinsic.geometry.service import geometry_service_pb2
 from intrinsic.geometry.service import geometry_service_pb2_grpc
+from intrinsic.geometry.service import geometry_storage_refs_pb2
 from intrinsic.icon.equipment import icon_equipment_pb2
 from intrinsic.icon.proto import cart_space_pb2
 from intrinsic.kinematics.types import joint_limits_pb2
@@ -26,6 +27,7 @@ from intrinsic.world.proto import object_world_service_pb2_grpc
 from intrinsic.world.proto import object_world_updates_pb2
 from intrinsic.world.python import object_world_ids
 from intrinsic.world.python import object_world_resources
+from intrinsic.world.robot_payload.python import robot_payload
 
 # Convenience constant for an ObjectEntityFilter that selects only the base
 # entity.
@@ -632,6 +634,21 @@ class ObjectWorldClient:
     )
 
   @error_handling.retry_on_grpc_unavailable
+  def update_kinematic_object_payload(
+      self,
+      kinematic_object: object_world_resources.KinematicObject,
+      payload: robot_payload.RobotPayload,
+  ) -> None:
+
+    self._stub.UpdateKinematicObjectProperties(
+        object_world_updates_pb2.UpdateKinematicObjectPropertiesRequest(
+            world_id=self._world_id,
+            object=kinematic_object.reference,
+            mounted_payload=robot_payload.payload_to_proto(payload),
+        )
+    )
+
+  @error_handling.retry_on_grpc_unavailable
   def update_joint_system_limits(
       self,
       kinematic_object: object_world_resources.KinematicObject,
@@ -1203,7 +1220,7 @@ class ObjectWorldClient:
       self,
       *,
       geometry: geometry_service_pb2.CreateGeometryRequest,
-  ) -> str:
+  ) -> geometry_storage_refs_pb2.GeometryStorageRefs:
     """Registers geometry so that it can be referenced to create an object.
 
     Arguments:
@@ -1214,7 +1231,7 @@ class ObjectWorldClient:
       service client.
 
     Returns:
-      Geometry id corresponding to the registered geometry.
+      Opaque references corresponding to the registered geometry.
     """
 
     if self._geometry_service_stub is None:
@@ -1222,7 +1239,9 @@ class ObjectWorldClient:
           'ObjectWorldClient has not been configured to register geometry data.'
       )
 
-    return self._geometry_service_stub.CreateGeometry(geometry).geometry_id
+    return self._geometry_service_stub.CreateGeometry(
+        geometry
+    ).geometry_storage_refs
 
   def create_geometry_object(
       self,

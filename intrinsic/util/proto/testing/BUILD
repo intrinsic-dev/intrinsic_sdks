@@ -3,8 +3,8 @@
 # Test libraries and utilities for situations that deal with proto libraries and
 # their generated code.
 
-load("//bazel:go_macros.bzl", "go_library", "go_proto_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library")
+load("//bazel:go_macros.bzl", "go_library", "go_proto_library")
 
 package(
     default_testonly = True,
@@ -196,6 +196,6 @@ go_library(
     srcs = ["proto_test_util.go"],
     deps = [
         "@org_golang_google_protobuf//proto",
-        "@org_golang_google_protobuf//types/known/anypb:go_default_library",
+        "@org_golang_google_protobuf//types/known/anypb",
     ],
 )

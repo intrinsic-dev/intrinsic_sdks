@@ -2,8 +2,8 @@
 
 # Common code for assets (e.g., skills, resources).
 
-load("//bazel:go_macros.bzl", "go_library")
 load("@rules_python//python:defs.bzl", "py_library")
+load("//bazel:go_macros.bzl", "go_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -25,8 +25,12 @@ go_library(
     name = "cmdutils",
     srcs = ["cmdutils.go"],
     deps = [
+        ":imagetransfer",
         ":imageutils",
         "//intrinsic/tools/inctl/util:orgutil",
+        "@com_github_google_go_containerregistry//pkg/authn:go_default_library",
+        "@com_github_google_go_containerregistry//pkg/v1/google:go_default_library",
+        "@com_github_google_go_containerregistry//pkg/v1/remote:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_viper//:go_default_library",
@@ -88,6 +92,7 @@ go_library(
     name = "imageutils",
     srcs = ["imageutils.go"],
     deps = [
+        ":idutils",
         ":imagetransfer",
         "//intrinsic/assets/proto:id_go_proto",
         "//intrinsic/kubernetes/workcell_spec:imagetags",
@@ -102,6 +107,5 @@ go_library(
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",
-        "@org_golang_google_protobuf//proto",
     ],
 )

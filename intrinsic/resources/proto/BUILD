@@ -2,8 +2,8 @@
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
-load("//bazel:go_macros.bzl", "go_grpc_library", "go_proto_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
+load("//bazel:go_macros.bzl", "go_grpc_library", "go_proto_library")
 
 package(default_visibility = [
     "//visibility:public",
@@ -14,13 +14,19 @@ proto_library(
     srcs = ["resource_registry.proto"],
     deps = [
         ":resource_handle_proto",
+        "//intrinsic/assets/proto:metadata_proto",
+        "//intrinsic/assets/proto:view_proto",
         "@com_google_protobuf//:any_proto",
     ],
 )
 
 go_proto_library(
     name = "resource_registry_go_proto",
-    go_deps = ["//intrinsic/resources/proto:resource_handle_go_proto"],
+    go_deps = [
+        "//intrinsic/assets/proto:metadata_go_proto",
+        "//intrinsic/assets/proto:view_go_proto",
+        "//intrinsic/resources/proto:resource_handle_go_proto",
+    ],
     deps = [":resource_registry_proto"],
 )
 
@@ -28,8 +34,10 @@ go_grpc_library(
     name = "resource_registry_go_grpc_proto",
     srcs = [":resource_registry_proto"],
     deps = [
+        "//intrinsic/assets/proto:metadata_go_proto",
+        "//intrinsic/assets/proto:view_go_proto",
         "//intrinsic/resources/proto:resource_handle_go_proto",
-        "@org_golang_google_protobuf//types/known/anypb:go_default_library",
+        "@org_golang_google_protobuf//types/known/anypb",
     ],
 )
 

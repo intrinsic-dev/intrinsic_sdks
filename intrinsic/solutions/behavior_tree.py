@@ -33,14 +33,15 @@ from intrinsic.executive.proto import behavior_tree_pb2
 from intrinsic.executive.proto import world_query_pb2
 from intrinsic.skills.proto import skills_pb2
 from intrinsic.solutions import blackboard_value
+from intrinsic.solutions import cel
 from intrinsic.solutions import errors as solutions_errors
 from intrinsic.solutions import ipython
 from intrinsic.solutions import providers
-from intrinsic.solutions import skill_utils
-from intrinsic.solutions import skills as skills_mod
 from intrinsic.solutions import utils
 from intrinsic.solutions.internal import actions
 from intrinsic.solutions.internal import behavior_call
+from intrinsic.solutions.internal import skill_utils
+from intrinsic.solutions.internal import skills as skills_mod
 from intrinsic.world.proto import object_world_refs_pb2
 from intrinsic.world.python import object_world_resources
 
@@ -100,7 +101,7 @@ def _transform_to_node(node: Union['Node', actions.ActionBase]) -> 'Node':
 
 
 def _transform_to_optional_node(
-    node: Optional[Union['Node', actions.ActionBase]]
+    node: Optional[Union['Node', actions.ActionBase]],
 ) -> Optional['Node']:
   if node is None:
     return None
@@ -964,7 +965,7 @@ class Blackboard(Condition):
       blackboard.
   """
 
-  def __init__(self, cel_expression: str | skill_utils.CelExpression):
+  def __init__(self, cel_expression: str | cel.CelExpression):
     self.cel_expression: str = str(cel_expression)
 
   def __repr__(self) -> str:

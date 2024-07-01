@@ -2,8 +2,8 @@
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
-load("//bazel:go_macros.bzl", "go_proto_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
+load("//bazel:go_macros.bzl", "go_proto_library")
 
 package(default_visibility = [
     "//visibility:public",
@@ -78,6 +78,7 @@ proto_library(
     srcs = ["motion_specification.proto"],
     deps = [
         "//intrinsic/icon/proto:joint_space_proto",
+        "//intrinsic/skills/proto:skill_parameter_metadata_proto",
         "//intrinsic/world/proto:collision_settings_proto",
         "//intrinsic/world/proto:geometric_constraints_proto",
         "//intrinsic/world/proto:object_world_refs_proto",
