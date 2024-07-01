@@ -8,6 +8,8 @@
 package idutils
 
 import (
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -26,6 +28,8 @@ var (
 
 	// labelRegex = regexp.MustCompile(`(^([a-z])|([a-z][a-z0-9-]*[a-z0-9])$)`)
 	labelRegex = regexp.MustCompile(`^[a-z]([a-z0-9\-]*[a-z0-9])*$`)
+
+	nonReleasedVersionRegex = regexp.MustCompile("\\+(?:sideloaded|inlined)")
 )
 
 // getNamedMatch extracts the named group from a match of a string on a regex pattern.
@@ -335,6 +339,14 @@ func IsVersion(version string) bool {
 	return versionRegex.MatchString(version)
 }
 
+// IsUnreleasedVersion tests whether a string is a valid and unreleased asset version.
+//
+// A valid unreleased version is formatted as described by semver.org with build metadata matching
+// the reserved prefix for unreleased assets.
+func IsUnreleasedVersion(version string) bool {
+	return IsVersion(version) && nonReleasedVersionRegex.MatchString(version)
+}
+
 // ValidateID validates an id.
 //
 // A valid id is formatted as described in IsId.
@@ -409,6 +421,18 @@ func ValidateVersion(version string) error {
 	return nil
 }
 
+// ValidateUnreleasedVersion validates an unreleased version.
+//
+// An unreleased version is formatted as described in IsUnreleasedVersion.
+//
+// Returns an error if `version` is not valid or not unreleased.
+func ValidateUnreleasedVersion(version string) error {
+	if !IsUnreleasedVersion(version) {
+		return fmt.Errorf("%q is not a valid unreleased version", version)
+	}
+	return nil
+}
+
 // ParentFromPackage returns the parent package of the specified package/
 //
 // Returns an empty string if the package has no parent.
@@ -462,4 +486,33 @@ func ToLabel(s string) (string, error) {
 // FromLabel recovers an input string previously passed to ToLabel.
 func FromLabel(label string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(label, "--", "."), "-", "_")
+}
+
+// UnreleasedAssetKind describes the kind (i.e. the "source") of an unreleased asset.
+//
+// The kind is encoded in the version of the asset.
+type UnreleasedAssetKind string
+
+const (
+	// UnreleasedAssetKindSideloaded describes an asset that has been or will be sideloaded.
+	UnreleasedAssetKindSideloaded = "sideloaded"
+
+	// UnreleasedAssetKindInlined describes an asset that has been or will be inlined from source.
+	UnreleasedAssetKindInlined = "inlined"
+)
+
+// UnreleasedVersion creates a deterministic, unreleased version of the given kind. The version is
+// marked with a digest of the data to provide strong uniqueness guarantees.
+//
+// The resulting version is formatted as described in IsUnreleasedVersion.
+//
+// Returns an error if the kind is unknown/invalid or data is empty.
+func UnreleasedVersion(kind UnreleasedAssetKind, data []byte) (string, error) {
+	if kind != UnreleasedAssetKindSideloaded && kind != UnreleasedAssetKindInlined {
+		return "", errors.New("invalid kind")
+	}
+	if len(data) == 0 {
+		return "", errors.New("empty data")
+	}
+	return fmt.Sprintf("0.0.1+%s%x", kind, sha256.Sum256(data)), nil
 }

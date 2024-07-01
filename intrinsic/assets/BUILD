@@ -45,6 +45,7 @@ cc_library(
         "//intrinsic/assets/proto:id_cc_proto",
         "//intrinsic/util/status:annotate",
         "//intrinsic/util/status:status_macros",
+        "@boringssl//:crypto",
         "@com_github_google_re2//:re2",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -107,5 +108,6 @@ go_library(
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",
+        "@org_golang_google_protobuf//proto",
     ],
 )
