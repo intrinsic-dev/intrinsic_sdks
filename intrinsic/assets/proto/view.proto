@@ -18,6 +18,7 @@ enum AssetViewType {
   // Provides detailed information.
   //
   // Includes the following fields:
+  // * asset_tag
   // * documentation
   // * display_name
   // * id_version
@@ -31,7 +32,7 @@ enum AssetViewType {
   // Includes the following fields:
   // * id_version
   // * release_notes
-  // * tag
+  // * release_tag
   // * update_time
   // * vendor
   ASSET_VIEW_TYPE_VERSIONS = 3;

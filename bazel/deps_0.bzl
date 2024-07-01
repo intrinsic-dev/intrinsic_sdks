@@ -36,10 +36,10 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "io_bazel_rules_go",
-        sha256 = "7c76d6236b28ff695aa28cf35f95de317a9472fd1fb14ac797c9bf684f09b37c",
+        sha256 = "80a98277ad1311dacd837f9b16db62887702e9f1d1c4c9f796d0121a46c8e184",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.44.2/rules_go-v0.44.2.zip",
-            "https://github.com/bazelbuild/rules_go/releases/download/v0.44.2/rules_go-v0.44.2.zip",
+            "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.46.0/rules_go-v0.46.0.zip",
+            "https://github.com/bazelbuild/rules_go/releases/download/v0.46.0/rules_go-v0.46.0.zip",
         ],
     )
 
@@ -67,9 +67,9 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "rules_python",
-        strip_prefix = "rules_python-0.27.1",
-        url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.27.1.zip",
-        sha256 = "19250cc0ab89f052131137a58c993d988d74637b52a5b137a4264d9917c13a3e",
+        strip_prefix = "rules_python-0.31.0",
+        url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.31.0.zip",
+        sha256 = "9110e83a233c9edce177241f3ae95eae4e4cc3b602d845878d76ad4e3bab7c60",
     )
 
     maybe(
@@ -175,9 +175,9 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "com_google_googletest",
-        sha256 = "ad7fdba11ea011c1d925b3289cf4af2c66a352e18d4c7264392fead75e919363",
-        strip_prefix = "googletest-1.13.0",
-        urls = ["https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz"],
+        sha256 = "8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7",
+        strip_prefix = "googletest-1.14.0",
+        urls = ["https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz"],
     )
 
     # Google benchmark.
