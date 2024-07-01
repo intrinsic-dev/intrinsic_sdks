@@ -11,7 +11,8 @@ import enum
 import inspect
 import textwrap
 import time
-from typing import Any, Callable, Container, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, Union, cast
+import typing
+from typing import Any, Callable, Container, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, Union
 import warnings
 
 from google.protobuf import descriptor
@@ -26,10 +27,13 @@ from intrinsic.math.proto import pose_pb2
 from intrinsic.math.python import data_types
 from intrinsic.math.python import proto_conversion as math_proto_conversion
 from intrinsic.motion_planning.proto import motion_target_pb2
+from intrinsic.perception.proto import pose_estimator_id_pb2
 from intrinsic.skills.client import skill_registry_client
 from intrinsic.skills.proto import skills_pb2
 from intrinsic.solutions import blackboard_value
 from intrinsic.solutions import cel
+from intrinsic.solutions import pose_estimation
+from intrinsic.solutions import provided
 from intrinsic.solutions import utils
 from intrinsic.solutions import worlds
 from intrinsic.solutions.internal import skill_parameters
@@ -120,53 +124,6 @@ _MESSAGE_NAME_TO_PYTHON_VALUE = {
     "intrinsic_proto.Pose": math_proto_conversion.pose_from_proto,
 }
 
-_MESSAGE_NAME_TO_PYTHONIC_TYPE = {
-    "intrinsic_proto.skills.StringVector": Sequence[str],
-    "intrinsic_proto.skills.VectorNdArray": Sequence[skills_pb2.VectorNdValue],
-    "intrinsic_proto.skills.VectorNdValue": Sequence[float],
-    duration_pb2.Duration.DESCRIPTOR.full_name: Union[
-        int, float, datetime.timedelta, duration_pb2.Duration
-    ],
-}
-
-
-def repeated_pythonic_field_type(
-    field_descriptor: descriptor.FieldDescriptor,
-    wrapper_classes: dict[str, Type[MessageWrapper]],
-    enum_classes: dict[str, Type[enum.IntEnum]],
-) -> Type[Sequence[Any]]:
-  """Returns a 'pythonic' type based on the field_descriptor.
-
-  Can be a Protobuf message for types for which we provide no native conversion.
-
-  Args:
-    field_descriptor: The Protobuf descriptor for the field
-    wrapper_classes: Map from proto message names to corresponding message
-      wrapper classes.
-    enum_classes: Map from full proto enum names to corresponding enum classes.
-
-  Returns:
-    The Python type of the field.
-  """
-  if field_descriptor.type == descriptor.FieldDescriptor.TYPE_MESSAGE:
-    if field_descriptor.message_type.GetOptions().map_entry:
-      raise TypeError("Cannot get repeated pythonic type for proto map as list")
-    if (
-        field_descriptor.message_type.full_name
-        in _MESSAGE_NAME_TO_PYTHONIC_TYPE
-    ):
-      return Sequence[
-          _MESSAGE_NAME_TO_PYTHONIC_TYPE[
-              field_descriptor.message_type.full_name
-          ]
-      ]
-    return Sequence[wrapper_classes[field_descriptor.message_type.full_name]]
-
-  if field_descriptor.type == descriptor.FieldDescriptor.TYPE_ENUM:
-    return Sequence[enum_classes[field_descriptor.enum_type.full_name]]
-
-  return Sequence[_PYTHONIC_SCALAR_FIELD_TYPE[field_descriptor.type]]
-
 
 def pythonic_field_type(
     field_descriptor: descriptor.FieldDescriptor,
@@ -185,12 +142,23 @@ def pythonic_field_type(
 
   Returns:
     The Python type of the field.
+
+  Raises:
+    KeyError: If the auto-converted types cannot be determined.
   """
   if field_descriptor.type == descriptor.FieldDescriptor.TYPE_MESSAGE:
     message_full_name = field_descriptor.message_type.full_name
-    if message_full_name in _MESSAGE_NAME_TO_PYTHONIC_TYPE:
-      return _MESSAGE_NAME_TO_PYTHONIC_TYPE[message_full_name]
-    return wrapper_classes[message_full_name]
+    result_type = wrapper_classes[message_full_name]
+
+    # If we have an auto-conversion function for this message, add the
+    # corresponding Pythonic types.
+    if message_full_name in _PYTHONIC_TO_MESSAGE_AUTO_CONVERSIONS:
+      auto_converted_types = _PYTHONIC_TO_MESSAGE_AUTO_CONVERSIONS[
+          message_full_name
+      ].converted_types
+      result_type = Union[auto_converted_types, result_type]
+
+    return result_type
 
   if field_descriptor.type == descriptor.FieldDescriptor.TYPE_ENUM:
     return enum_classes[field_descriptor.enum_type.full_name]
@@ -199,7 +167,7 @@ def pythonic_field_type(
 
 
 def _field_to_string_vector(
-    field_value: Union[Sequence[str], skills_pb2.StringVector],
+    field_value: Sequence[str],
 ) -> skills_pb2.StringVector:
   """Converts the field_value to skills_pb2.StringVector."""
   if isinstance(field_value, list) and all(
@@ -208,15 +176,11 @@ def _field_to_string_vector(
     field_message = skills_pb2.StringVector()
     field_message.values.extend(field_value)
     return field_message
-  elif isinstance(field_value, skills_pb2.StringVector):
-    return field_value
   raise TypeError(f"Value {field_value} not a list of strings")
 
 
 def _field_to_vector_nd_array(
-    field_value: Union[
-        Sequence[skills_pb2.VectorNdValue], skills_pb2.VectorNdArray
-    ],
+    field_value: Sequence[skills_pb2.VectorNdValue],
 ) -> skills_pb2.VectorNdArray:
   """Converts the field_value to skills_pb2.VectorNdArray."""
   if isinstance(field_value, list) and all(
@@ -225,18 +189,14 @@ def _field_to_vector_nd_array(
     field_message = skills_pb2.VectorNdArray()
     field_message.array.extend(field_value)
     return field_message
-  elif isinstance(field_value, skills_pb2.VectorNdArray):
-    return field_value
   raise TypeError(f"Value {field_value} is not convertible to a VectorNdArray")
 
 
 def _field_to_vector_nd_value(
-    field_value: Union[skills_pb2.VectorNdValue, Sequence[float]],
+    field_value: Sequence[float],
 ) -> skills_pb2.VectorNdValue:
   """Converts the field_value to skills_pb2.VectorNdValue."""
-  if isinstance(field_value, skills_pb2.VectorNdValue):
-    return field_value
-  elif isinstance(field_value, list) and all(
+  if isinstance(field_value, list) and all(
       isinstance(s, float) for s in field_value
   ):
     field_message = skills_pb2.VectorNdValue()
@@ -253,15 +213,14 @@ def _field_to_pose_3d(field_value: data_types.Pose3) -> pose_pb2.Pose:
 
 
 def _field_to_object_reference(
-    field_value: Union[
-        object_world_resources.WorldObject,
-        object_world_refs_pb2.ObjectReference,
-    ],
+    # This needs to accept 'TransformNode' (and not 'WorldObject') to be
+    # compatible with the world path notation. E.g., we want to be able to pass
+    # 'world.my_object' to a skill parameter of type 'ObjectReference', and
+    # 'world.__getattr__()' will return a 'WorldObject' as a 'TransformNode'.
+    field_value: object_world_resources.TransformNode,
 ) -> object_world_refs_pb2.ObjectReference:
   """Converts a field_value to object_world_refs_pb2.ObjectReference."""
-  if isinstance(field_value, object_world_refs_pb2.ObjectReference):
-    return field_value
-  elif isinstance(field_value, object_world_resources.WorldObject):
+  if isinstance(field_value, object_world_resources.WorldObject):
     return field_value.reference
   raise TypeError(
       f"Value: {field_value} is not convertible to an ObjectReference."
@@ -269,14 +228,14 @@ def _field_to_object_reference(
 
 
 def _field_to_frame_reference(
-    field_value: Union[
-        object_world_resources.Frame, object_world_refs_pb2.FrameReference
-    ],
+    # This needs to accept 'TransformNode' (and not 'Frame') to be compatible
+    # with the world path notation. E.g., we want to be able to pass
+    # 'world.my_global_frame' to a skill parameter of type 'FrameReference', and
+    # 'world.__getattr__()' will return a 'Frame' as a 'TransformNode'.
+    field_value: object_world_resources.TransformNode,
 ) -> object_world_refs_pb2.FrameReference:
   """Converts a field_value to object_world_refs_pb2.FrameReference."""
-  if isinstance(field_value, object_world_refs_pb2.FrameReference):
-    return field_value
-  elif isinstance(field_value, object_world_resources.Frame):
+  if isinstance(field_value, object_world_resources.Frame):
     return field_value.reference
   raise TypeError(
       f"Value: {field_value} is not convertible to an FrameReference."
@@ -284,16 +243,9 @@ def _field_to_frame_reference(
 
 
 def _field_to_transform_node_reference(
-    field_value: Union[
-        object_world_resources.WorldObject,
-        object_world_resources.Frame,
-        object_world_refs_pb2.TransformNodeReference,
-    ],
+    field_value: object_world_resources.TransformNode,
 ) -> object_world_refs_pb2.TransformNodeReference:
   """Converts a field_value to TransformNodeReference.
-
-  The object_world_refs_pb2.TransformNodeReference either contains an
-  id or a TransformNodeReferenceByName.
 
   Args:
     field_value: The value that should be converted.
@@ -301,11 +253,7 @@ def _field_to_transform_node_reference(
   Returns:
     A TransformNodeReference with an object or frame reference.
   """
-  if isinstance(field_value, object_world_refs_pb2.TransformNodeReference):
-    return field_value
-  elif isinstance(field_value, object_world_resources.WorldObject):
-    return object_world_refs_pb2.TransformNodeReference(id=field_value.id)
-  elif isinstance(field_value, object_world_resources.Frame):
+  if isinstance(field_value, object_world_resources.TransformNode):
     return object_world_refs_pb2.TransformNodeReference(id=field_value.id)
   raise TypeError(
       f"Value: {field_value} is not convertible to a TransformNodeReference."
@@ -365,12 +313,11 @@ def _field_to_collision_settings(
 
 
 def _field_to_duration(
-    field_value: Union[datetime.timedelta, float, int, duration_pb2.Duration],
+    field_value: Union[datetime.timedelta, float, int],
 ) -> duration_pb2.Duration:
   """Create a Duration object from various inputs.
 
-  This will transform datetime.timedelta and ints/floats while also accepting an
-  already created Duration object.
+  This will transform datetime.timedelta and ints/floats.
 
   Args:
     field_value: The value to transform to duration_pb2.Duration. If it is a
@@ -382,9 +329,7 @@ def _field_to_duration(
   Raises:
     TypeError if the field_value is not one of the expected types.
   """
-  if isinstance(field_value, duration_pb2.Duration):
-    return field_value
-  elif isinstance(field_value, datetime.timedelta):
+  if isinstance(field_value, datetime.timedelta):
     duration_proto = duration_pb2.Duration()
     duration_proto.FromTimedelta(field_value)
     return duration_proto
@@ -399,35 +344,83 @@ def _field_to_duration(
     duration_proto.nanos = int(d * 1e9)
     return duration_proto
   raise TypeError(
-      "Expected value of type int, float, datetime.timedelta or"
-      f" duration_pb2.Duration, got {type(field_value)}"
+      "Expected value of type int, float or datetime.timedelta, got"
+      f" {type(field_value)}"
   )
 
 
-_PYTHONIC_MESSAGE_FIELD_TYPE = {
-    skills_pb2.StringVector.DESCRIPTOR.full_name: _field_to_string_vector,
-    skills_pb2.VectorNdArray.DESCRIPTOR.full_name: _field_to_vector_nd_array,
-    skills_pb2.VectorNdValue.DESCRIPTOR.full_name: _field_to_vector_nd_value,
-    pose_pb2.Pose.DESCRIPTOR.full_name: _field_to_pose_3d,
-    joint_space_pb2.JointVec.DESCRIPTOR.full_name: _field_to_joint_vec_target,
+def _field_to_pose_estimator_id(
+    field_value: pose_estimation.PoseEstimatorId,
+) -> pose_estimator_id_pb2.PoseEstimatorId:
+  if isinstance(field_value, pose_estimation.PoseEstimatorId):
+    return pose_estimator_id_pb2.PoseEstimatorId(id=field_value.id)
+  raise TypeError(f"Cannot convert {field_value} to PoseEstimatorId.")
+
+
+@dataclasses.dataclass
+class _AutoConversion:
+  """Encapsulates an auto-conversion function together with metadata about it.
+
+  Attributes:
+    field_to_message: A function that converts a Pythonic field value to a
+      corresponding message. Must have a parameter called 'field_value' with a
+      type annotation indicating the types that can be converted.
+    converted_types: The Python types that can be converted to a message. Either
+      a single type (e.g. "int") or a Union of multiple types (e.g. "Union[int,
+      str]").
+  """
+
+  field_to_message: Callable[[Any], message.Message]
+  converted_types: Type[Any] = dataclasses.field(init=False)
+
+  def __post_init__(self):
+    type_hints = typing.get_type_hints(self.field_to_message)
+    if "field_value" not in type_hints:
+      raise KeyError(
+          f"Auto-conversion function {self.field_to_message.__name__} must have"
+          " a parameter called 'field_value' with a type annotation indicating"
+          " the types that can be converted",
+      )
+    self.converted_types = type_hints["field_value"]
+
+
+_PYTHONIC_TO_MESSAGE_AUTO_CONVERSIONS = {
+    skills_pb2.StringVector.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_string_vector
+    ),
+    skills_pb2.VectorNdArray.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_vector_nd_array
+    ),
+    skills_pb2.VectorNdValue.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_vector_nd_value
+    ),
+    pose_pb2.Pose.DESCRIPTOR.full_name: _AutoConversion(_field_to_pose_3d),
+    joint_space_pb2.JointVec.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_joint_vec_target
+    ),
     collision_settings_pb2.CollisionSettings.DESCRIPTOR.full_name: (
-        _field_to_collision_settings
+        _AutoConversion(_field_to_collision_settings)
     ),
     collision_settings_pb2.ObjectOrEntityReference.DESCRIPTOR.full_name: (
-        _field_to_object_or_entity_reference
+        _AutoConversion(_field_to_object_or_entity_reference)
     ),
     motion_target_pb2.CartesianMotionTarget.DESCRIPTOR.full_name: (
-        _field_to_motion_planning_cartesian_motion_target
+        _AutoConversion(_field_to_motion_planning_cartesian_motion_target)
     ),
-    duration_pb2.Duration.DESCRIPTOR.full_name: _field_to_duration,
-    object_world_refs_pb2.FrameReference.DESCRIPTOR.full_name: (
+    duration_pb2.Duration.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_duration
+    ),
+    object_world_refs_pb2.FrameReference.DESCRIPTOR.full_name: _AutoConversion(
         _field_to_frame_reference
     ),
     object_world_refs_pb2.TransformNodeReference.DESCRIPTOR.full_name: (
-        _field_to_transform_node_reference
+        _AutoConversion(_field_to_transform_node_reference)
     ),
-    object_world_refs_pb2.ObjectReference.DESCRIPTOR.full_name: (
+    object_world_refs_pb2.ObjectReference.DESCRIPTOR.full_name: _AutoConversion(
         _field_to_object_reference
+    ),
+    pose_estimator_id_pb2.PoseEstimatorId.DESCRIPTOR.full_name: _AutoConversion(
+        _field_to_pose_estimator_id
     ),
 }
 
@@ -459,10 +452,10 @@ def pythonic_to_proto_message(
   if isinstance(field_value, MessageWrapper):
     return field_value.wrapped_message
   # Provide implicit conversion for some non-message types.
-  if message_descriptor.full_name in _PYTHONIC_MESSAGE_FIELD_TYPE:
-    return _PYTHONIC_MESSAGE_FIELD_TYPE[message_descriptor.full_name](
-        field_value
-    )
+  if message_descriptor.full_name in _PYTHONIC_TO_MESSAGE_AUTO_CONVERSIONS:
+    return _PYTHONIC_TO_MESSAGE_AUTO_CONVERSIONS[
+        message_descriptor.full_name
+    ].field_to_message(field_value)
   raise TypeError(
       "Type of value {} is of type {}. Must be convertible to message type {}"
       .format(field_value, type(field_value), message_descriptor.full_name)
@@ -812,62 +805,56 @@ def _get_nested_classes(
       _get_nested_classes(nested_type, type_name, additional_msg_classes)
 
 
-def get_field_classes_to_alias(
+def collect_message_classes_to_wrap(
     param_descriptor: descriptor.Descriptor,
-    message_classes: Dict[str, Type[message.Message]],
-    collected_classes: List[
-        Tuple[str, Type[message.Message], descriptor.FieldDescriptor]
-    ],
+    message_classes: dict[str, Type[message.Message]],
+    collected_classes: dict[str, Type[message.Message]],
     collected_enums: dict[str, descriptor.EnumDescriptor],
 ) -> None:
-  """Gets classes which should be aliased as top-level members.
+  """Collects message classes for which wrapper classes should be generated.
 
-  This checks param_descriptor for fields which specify sub-messages.
-  These are to be aliased at the enclosing class scope for easy access.
+  Recursively collects all message types and enums which are used by the
+  fields of the message specified by 'param_descriptor'.
 
   Args:
     param_descriptor: parameter proto descriptor
-    message_classes: mapping from type name to message class for all messages in
-      the class's hermetic descriptor pool.
-    collected_classes: List containing all collected classes up to this point.
-      The items are tuples of 1) nested class attribute name (proto message
-      short name), 2) message class and 3) field descriptor.
+    message_classes: Mapping from full proto message name to message class for
+      all messages in the skill's hermetic descriptor pool.
+    collected_classes: Subset of classes from 'message_classes' which have been
+      collected up to this point.
     collected_enums: Map from full proto enum names to enum descriptors,
       containing all collected enums up to this point.
   """
 
   for field in param_descriptor.fields:
     if field.enum_type is not None:
-      enum_type = cast(descriptor.EnumDescriptor, field.enum_type)
+      enum_type = typing.cast(descriptor.EnumDescriptor, field.enum_type)
       collected_enums[enum_type.full_name] = enum_type
     elif (
         field.message_type is not None
         and field.message_type.full_name in message_classes
-        and (
-            # Do not alias auto-generated map *Entry classes
-            field.type != descriptor.FieldDescriptor.TYPE_MESSAGE
-            or not field.message_type.GetOptions().map_entry
-        )
     ):
-      nested_class_attr_name = message_classes[
-          field.message_type.full_name
-      ].__name__
-      found = [
-          elem
-          for elem in collected_classes
-          if (
-              elem[0] == nested_class_attr_name
-              and elem[2].full_name == field.full_name
-          )
-      ]
-      if not any(found):
-        collected_classes.append((
-            nested_class_attr_name,
-            message_classes[field.message_type.full_name],
-            field,
-        ))
-        get_field_classes_to_alias(
-            field.message_type,
+      if field.message_type.GetOptions().map_entry:
+        # The field is a map and 'field.message_type' is an auto-generated entry
+        # type (see https://protobuf.dev/programming-guides/proto3/#backwards).
+        # Since map keys cannot have a message type, we only consider the type
+        # of the map's values for collection.
+        map_value_field = field.message_type.fields_by_name["value"]
+        if map_value_field.message_type is not None:
+          message_full_name = map_value_field.message_type.full_name
+          message_descriptor = map_value_field.message_type
+        else:
+          continue
+      else:
+        message_full_name = field.message_type.full_name
+        message_descriptor = field.message_type
+
+      if message_full_name not in collected_classes:
+        collected_classes[message_full_name] = message_classes[
+            message_full_name
+        ]
+        collect_message_classes_to_wrap(
+            message_descriptor,
             message_classes,
             collected_classes,
             collected_enums,
@@ -1485,10 +1472,8 @@ def update_message_class_modules(
     skill_name: str,
     skill_package: str,
     parameter_description: skills_pb2.ParameterDescription,
-    nested_classes: list[
-        tuple[str, Type[message.Message], descriptor.FieldDescriptor]
-    ],
-    enum_descriptors: dict[str, descriptor.EnumDescriptor],
+    message_classes_to_wrap: dict[str, Type[message.Message]],
+    enum_descriptors_to_wrap: dict[str, descriptor.EnumDescriptor],
 ) -> tuple[dict[str, Type[MessageWrapper]], dict[str, Type[enum.IntEnum]]]:
   """Updates given class with type aliases.
 
@@ -1499,9 +1484,12 @@ def update_message_class_modules(
     skill_name: Name of the skill to correspoding to 'cls'.
     skill_package: Package name of the skill to correspoding to 'cls'.
     parameter_description: The skill's parameter description.
-    nested_classes: Message classes to be attached to the skill class.
-    enum_descriptors: Map from full proto enum names to enum descriptors,
-      containing enums for which to attach enum classes to the skill class.
+    message_classes_to_wrap: Map from full proto message names to message
+      classes, containing the message classes for which to generate wrapper
+      classes under the skill class.
+    enum_descriptors_to_wrap: Map from full proto enum names to enum
+      descriptors, containing enums for which to generate enum classes under the
+      skill class.
 
   Returns:
     A tuple of 1) a map from proto message names to corresponding message
@@ -1510,22 +1498,18 @@ def update_message_class_modules(
   """
   enum_classes: dict[str, Type[enum.IntEnum]] = {
       enum_full_name: _gen_enum_class(enum_desc, skill_name, skill_package)
-      for enum_full_name, enum_desc in enum_descriptors.items()
+      for enum_full_name, enum_desc in enum_descriptors_to_wrap.items()
   }
 
   wrapper_classes: dict[str, Type[MessageWrapper]] = {}
-  for _, message_type, field in nested_classes:
-    if field.message_type.full_name in _MESSAGE_NAME_TO_PYTHONIC_TYPE:
-      continue
-
-    if field.message_type.full_name not in wrapper_classes:
-      wrapper_class = _gen_wrapper_class(
-          message_type,
-          skill_name,
-          skill_package,
-          dict(parameter_description.parameter_field_comments),
-      )
-      wrapper_classes[field.message_type.full_name] = wrapper_class
+  for message_full_name, message_type in message_classes_to_wrap.items():
+    wrapper_class = _gen_wrapper_class(
+        message_type,
+        skill_name,
+        skill_package,
+        dict(parameter_description.parameter_field_comments),
+    )
+    wrapper_classes[message_full_name] = wrapper_class
 
   # The init function of a wrapper class may reference any other wrapper class
   # (proto definitions can be recursive!). So we can only generate the init
@@ -1552,14 +1536,11 @@ def update_message_class_modules(
         "", message_full_name, cls, wrapper_class, skill_name, skill_package
     )
 
-  # Create my_skill.<message name> shortcuts. Iterate in 'nested_classes' order
-  # for backwards compatibility and also to ensure that the shortcuts are
-  # deterministic in case of name collisions.
+  # Create my_skill.<message name> shortcuts. Note that iteration over a dict is
+  # in insertion order by default, so the shortcuts are deterministic in case of
+  # name collisions.
   message_names_done = set()
-  for _, _, field in nested_classes:
-    if field.message_type.full_name not in wrapper_classes:
-      continue
-    wrapper_class = wrapper_classes[field.message_type.full_name]
+  for message_full_name, wrapper_class in wrapper_classes.items():
     message_name = wrapper_class.wrapped_type.DESCRIPTOR.name
     if message_name not in message_names_done:
       setattr(
@@ -1568,7 +1549,7 @@ def update_message_class_modules(
           _ClassPropertyReturningWrapperClassWithWarning(
               skill_name,
               message_name,
-              field.message_type.full_name,
+              message_full_name,
               wrapper_class,
           ),
       )
@@ -1666,17 +1647,36 @@ def _extract_field_type_from_message_field(
     The Pythonic type of the given field.
   """
   if skill_params.is_map_field(field.name):
-    field_type = dict[Union[str, int, bool], Any]
-  elif skill_params.is_repeated_field(field.name):
-    field_type = repeated_pythonic_field_type(
-        field, wrapper_classes, enum_classes
+    # Under the hood, map fields are repeated fields whose type is an
+    # auto-generated message type with two fields called 'key' and 'value'.
+    # See https://protobuf.dev/programming-guides/proto3/#backwards.
+    key_type = pythonic_field_type(
+        field.message_type.fields_by_name["key"], wrapper_classes, enum_classes
     )
+    value_type = pythonic_field_type(
+        field.message_type.fields_by_name["value"],
+        wrapper_classes,
+        enum_classes,
+    )
+    field_type = Union[dict[key_type, value_type], provided.ParamAssignment]
+  elif skill_params.is_repeated_field(field.name):
+    field_type = Union[
+        Sequence[
+            Union[
+                pythonic_field_type(field, wrapper_classes, enum_classes),
+                provided.ParamAssignment,
+            ]
+        ],
+        provided.ParamAssignment,
+    ]
   else:
     # Singular field (possibly optional or in a oneof).
-    field_type = pythonic_field_type(field, wrapper_classes, enum_classes)
-
-  if skill_params.is_optional_in_python_signature(field.name):
-    field_type = Optional[field_type]  # pytype: disable=invalid-annotation
+    field_type = Union[
+        pythonic_field_type(field, wrapper_classes, enum_classes),
+        provided.ParamAssignment,
+    ]
+    if skill_params.is_optional_in_python_signature(field.name):
+      field_type = Optional[field_type]
 
   return field_type
 

@@ -28,6 +28,8 @@ var (
 	// Exposed for testing
 	authStore = auth.NewStore()
 	errNotXor = fmt.Errorf("exactly one of --%s or --%s must be set", KeyProject, KeyOrganization)
+
+	noOrg = false
 )
 
 // ErrOrgNotFound indicates that the lookup for a given credential
@@ -147,6 +149,9 @@ func PreRunOrganization(cmd *cobra.Command, vipr *viper.Viper) error {
 
 		orgFlag.Value.Set(cleanOrg)
 		vipr.Set(KeyOrganization, cleanOrg)
+	} else {
+		noOrg = true
+		fmt.Fprintf(os.Stderr, "\ninctl was called without an organization. This is deprecated and will soon be an error. Please use --org intrinsic@%v.\n", project)
 	}
 
 	return nil
@@ -178,6 +183,17 @@ func WrapCmd(cmd *cobra.Command, vipr *viper.Viper) *cobra.Command {
 		}
 		return nil
 	}
+	oldPostRunE := cmd.PersistentPostRunE
+	cmd.PersistentPostRunE = func(c *cobra.Command, args []string) error {
+		if noOrg {
+			fmt.Fprintf(os.Stderr, "\ninctl was called without an organization. This is deprecated and will soon be an error. Please use --org.\n")
+		}
+
+		if oldPostRunE != nil {
+			return oldPostRunE(c, args)
+		}
+		return nil
+	}
 
 	viperutil.BindFlags(vipr, cmd.PersistentFlags(), viperutil.BindToListEnv(KeyProject, KeyOrganization))
 	vipr.BindEnv(keyProjectCompat)
@@ -195,7 +211,7 @@ func SharedOrg(orgName string) bool {
 // multiple projects. This undoes the "cleaning" applied by PreRunOrganization when using WrapCmd().
 func QualifiedOrg(projectName, orgName string) string {
 	if orgName == "" {
-		return fmt.Sprintf("defaultorg@%s", projectName)
+		return fmt.Sprintf("intrinsic@%s", projectName)
 	}
 	if SharedOrg(orgName) {
 		orgName = fmt.Sprintf("%s@%s", orgName, projectName)

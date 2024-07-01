@@ -29,14 +29,6 @@ def non_module_deps():
         ],
     )
 
-    http_archive(
-        name = "com_github_google_flatbuffers",
-        urls = [
-            "https://github.com/google/flatbuffers/archive/refs/tags/v23.3.3.tar.gz",
-        ],
-        sha256 = "8aff985da30aaab37edf8e5b02fda33ed4cbdd962699a8e2af98fdef306f4e4d",
-        strip_prefix = "flatbuffers-23.3.3",
-    )
     http_jar(
         name = "firestore_emulator",
         sha256 = "1f08a8f7133edf2e7b355db0da162654df2b0967610d3de2f12b8ce07c493f5f",
@@ -59,27 +51,6 @@ def non_module_deps():
         strip_prefix = "cel-cpp-037873163975964a80a188ad7f936cb4f37f0684",
         sha256 = "d56e8c15b55240c92143ee3ed717956c67961a24f97711ca410030de92633288",
     )
-    http_archive(
-        name = "com_google_riegeli",
-        url = "https://github.com/google/riegeli/archive/15923d86939bf95cd0530bfa57cc4bbfcb61f444.tar.gz",  # 2024-05-14
-        strip_prefix = "riegeli-15923d86939bf95cd0530bfa57cc4bbfcb61f444",
-        sha256 = "cccbbf1c63d4677663796d44634e0bffc76718a4b8f1e6e02d30d4bfb62afbb2",
-    )
-
-    XLS_COMMIT = "507b33b5bdd696adb7933a6617b65c70e46d4703"  # 2024-03-06
-    http_file(
-        name = "com_google_xls_strong_int_h",
-        downloaded_file_path = "strong_int.h",
-        urls = ["https://raw.githubusercontent.com/google/xls/%s/xls/common/strong_int.h" % XLS_COMMIT],
-        sha256 = "4daad402bc0913e05b83d0bded9dd699738935e6d59d1424c99c944d6e0c2897",
-    )
-
-    http_archive(
-        name = "pybind11_abseil",
-        sha256 = "1496b112e86416e2dcf288569a3e7b64f3537f0b18132224f492266e9ff76c44",
-        strip_prefix = "pybind11_abseil-202402.0",
-        urls = ["https://github.com/pybind/pybind11_abseil/archive/refs/tags/v202402.0.tar.gz"],
-    )
 
     # Eigen math library.
     # Repository name should be com_gitlab_libeigen_eigen to serve
@@ -94,6 +65,18 @@ def non_module_deps():
         urls = [
             "https://gitlab.com/libeigen/eigen/-/archive/%s/eigen-%s.zip" % (EIGEN_COMMIT, EIGEN_COMMIT),
         ],
+    )
+
+    ################################
+    # Google OSS replacement files #
+    ################################
+
+    XLS_COMMIT = "507b33b5bdd696adb7933a6617b65c70e46d4703"  # 2024-03-06
+    http_file(
+        name = "com_google_xls_strong_int_h",
+        downloaded_file_path = "strong_int.h",
+        urls = ["https://raw.githubusercontent.com/google/xls/%s/xls/common/strong_int.h" % XLS_COMMIT],
+        sha256 = "4daad402bc0913e05b83d0bded9dd699738935e6d59d1424c99c944d6e0c2897",
     )
 
 def _non_module_deps_impl(ctx):  # @unused

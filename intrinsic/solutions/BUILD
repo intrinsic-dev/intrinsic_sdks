@@ -48,6 +48,7 @@ py_test(
     deps = [
         ":behavior_tree",
         ":blackboard_value",
+        ":cel",
         ":errors",
         ":proto_building",
         "//intrinsic/executive/proto:any_with_assignments_py_pb2",
@@ -368,7 +369,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":ipython",
-        "//intrinsic/perception/proto:pose_estimator_id_py_pb2",
         "//intrinsic/resources/client:resource_registry_client",
         "//intrinsic/util/grpc:error_handling",
     ],
@@ -455,6 +455,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":blackboard_value",
+        ":cel",
         ":utils",
         "//intrinsic/resources/proto:resource_handle_py_pb2",
         "//intrinsic/skills/proto:skills_py_pb2",

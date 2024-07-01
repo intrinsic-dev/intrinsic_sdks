@@ -212,7 +212,7 @@ class PartStatusSource(DataSource):
         part_status = _get_part_status(log_item, self._part_name)
         item = json_format.MessageToDict(
             payload_accessor(part_status),
-            including_default_value_fields=True,
+            always_print_fields_with_no_presence=True,
             preserving_proto_field_name=True,
         )
         item['time_s'] = part_status.timestamp_ns * 1e-9
@@ -391,7 +391,7 @@ class StreamingOutputSource(DataSource):
     )[::every_n]:
       item = json_format.MessageToDict(
           log_item,
-          including_default_value_fields=True,
+          always_print_fields_with_no_presence=True,
           preserving_proto_field_name=True,
       )
       item['time_s'] = timestamp
@@ -644,10 +644,10 @@ class StructuredLogs:
       self._log_options.sync_active = sync_active
       return self
 
-    def set_max_buffer_size(
-        self, max_buffer_size: int
+    def set_max_buffer_byte_size(
+        self, max_buffer_byte_size: int
     ) -> 'StructuredLogs.LogOptions':
-      self._log_options.max_buffer_size = max_buffer_size
+      self._log_options.max_buffer_byte_size = max_buffer_byte_size
       return self
 
     def set_token_bucket_options(
@@ -743,7 +743,7 @@ class StructuredLogs:
         self.LogOptions()
         .set_event_source(ret.event_source)
         .set_sync_active(ret.sync_active)
-        .set_max_buffer_size(ret.max_buffer_size)
+        .set_max_buffer_byte_size(ret.max_buffer_byte_size)
         .set_token_bucket_options(
             ret.logging_budget.refresh,
             ret.logging_budget.burst,
