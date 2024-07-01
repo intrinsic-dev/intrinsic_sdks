@@ -2,7 +2,9 @@
 
 # Client libraries for the ObjectWorldService.
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = [
+    "//visibility:public",
+])
 
 cc_library(
     name = "frame",
@@ -109,6 +111,8 @@ cc_library(
         ":transform_node",
         ":world_object",
         "//intrinsic/eigenmath",
+        "//intrinsic/icon/equipment:equipment_utils",
+        "//intrinsic/icon/equipment:icon_equipment_cc_proto",
         "//intrinsic/icon/proto:cart_space_conversion",
         "//intrinsic/kinematics/types:joint_limits_cc_proto",
         "//intrinsic/kinematics/types:joint_limits_xd",
@@ -118,6 +122,7 @@ cc_library(
         "//intrinsic/resources/proto:resource_handle_cc_proto",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/util:eigen",
+        "//intrinsic/util/status:status_conversion_grpc",
         "//intrinsic/util/status:status_macros",
         "//intrinsic/world/proto:object_world_refs_cc_proto",
         "//intrinsic/world/proto:object_world_service_cc_grpc_proto",

@@ -30,7 +30,7 @@ import dataclasses
 import datetime
 import logging
 import re
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from google.protobuf import empty_pb2
 from google.protobuf import json_format
@@ -129,70 +129,6 @@ class DataSource:
     df[df.columns[0]] = payload
     df[df.columns[1]] = times
     return df.sort_values(by=['time'])
-
-
-class JointStateSource(DataSource):
-  """Data source for joint states."""
-
-  def get_joint_states(self, every_n: int = 1) -> pd.DataFrame:
-    """Returns a Pandas Dataframe representing joint states.
-
-    Args:
-      every_n (int): Sample rate, only every nth sample is returned.
-
-    Returns:
-      Pandas Dataframe with two columns; "payload" with JointState protos
-      and "time" as datetime, sorted by "time".
-    """
-
-    def payload_accessor(log_item):
-      return log_item.payload.icon_l1_joint_state
-
-    return self._get_data_frame(payload_accessor, every_n)
-
-  def update_plot(self, widget) -> None:
-    """Updates the data in the widget returned by plot_joint_states."""
-    df = self.get_joint_states()
-    if df['payload'].empty:
-      return
-    num_joints = len(df['payload'][0].position)
-
-    def values_for_joint(i, value_fn):
-      return [value_fn(x)[i] for x in df['payload']]
-
-    with widget.batch_update():
-      for i in range(num_joints):
-        c1 = widget.data[i * 3]
-        c1.x = df.time
-        c1.y = values_for_joint(i, lambda n: n.position)
-
-        c2 = widget.data[i * 3 + 1]
-        c2.x = df.time
-        c2.y = values_for_joint(i, lambda n: n.velocity)
-
-        c3 = widget.data[i * 3 + 2]
-        c3.x = df.time
-        c3.y = values_for_joint(i, lambda n: n.torque)
-
-
-class WrenchSource(DataSource):
-  """Data source for Force-Torque data."""
-
-  def get_wrench(self, every_n: int = 1) -> pd.DataFrame:
-    """Returns a Pandas Dataframe representing wrench.
-
-    Args:
-      every_n (int): Sample rate, only every nth sample is returned.
-
-    Returns:
-      Pandas Dataframe with two columns; "payload" with Wrench protos
-      and "time" as datetime, sorted by "time".
-    """
-
-    def payload_accessor(log_item):
-      return log_item.payload.icon_ft_wrench
-
-    return self._get_data_frame(payload_accessor, every_n)
 
 
 def _get_part_status(log_item: log_item_pb2.LogItem, part_name: str):
@@ -378,6 +314,66 @@ class RobotStatusSource(DataSource):
   def __dir__(self):
     return self._part_names()
 
+  def _get_single_part(
+      self, part_selector: Callable[[part_status_pb2.PartStatus], bool]
+  ) -> PartStatusSource:
+    """Gets the logs for a single part.
+
+    Only works if the logs contain exactly one part matching the part_selector.
+
+    Args:
+      part_selector: A function to select the part.
+
+    Returns:
+      The selected part.
+
+    Raises:
+      ValueError: If no or more than one part matching the part_selector were
+      found.
+    """
+    robot_status_item = self.log_items[0].payload.icon_robot_status
+    selected_parts = [
+        part
+        for part in self._part_names()
+        if part_selector(robot_status_item.status_map[part])
+    ]
+    if len(selected_parts) != 1:
+      raise ValueError(
+          f'Found {len(selected_parts)} parts matching the selector, expected'
+          ' one.'
+      )
+    return self.__getattr__(selected_parts[0])
+
+  def get_single_arm_part(self) -> PartStatusSource:
+    """Gets the logs for the arm part.
+
+    Only works if the logs contain exactly one arm-part, which is usually the
+    case.
+
+    Returns:
+      The arm part logs.
+
+    Raises:
+      ValueError: If no or more than one arm part were found.
+    """
+    return self._get_single_part(lambda part_status: part_status.joint_states)
+
+  def get_single_ft_sensor_part(self) -> PartStatusSource:
+    """Gets the logs for the force-torque sensor part.
+
+    Only works if the logs contain exactly one force-torque sensor part, which
+    is usually the case.
+
+    Returns:
+      The force-torque sensor part logs.
+
+    Raises:
+      ValueError: If no or more than one force-torque sensor part were found.
+    """
+    return self._get_single_part(
+        lambda part_status: part_status.HasField('wrench_at_tip')
+    )
+
 
 class StreamingOutputSource(DataSource):
   """Data source for streamed action outputs."""
@@ -431,11 +427,7 @@ def _data_source_factory(data: List[log_item_pb2.LogItem]) -> DataSource:
   # payload type. That's why we only check data[0] below.
   # Other payloads.
   payload = data[0].payload
-  if payload.HasField('icon_l1_joint_state'):
-    return JointStateSource(data)
-  elif payload.HasField('icon_ft_wrench'):
-    return WrenchSource(data)
-  elif payload.HasField('icon_robot_status'):
+  if payload.HasField('icon_robot_status'):
     return RobotStatusSource(data)
   elif payload.HasField('any'):
     if payload.any.type_url.endswith(
@@ -637,6 +629,41 @@ class StructuredLogs:
   protos.
   """
 
+  class LogOptions:
+    """Wrapper for LogOptions proto."""
+
+    def __init__(self):
+      self._log_options = logger_service_pb2.LogOptions()
+
+    def set_event_source(
+        self, event_source: str
+    ) -> 'StructuredLogs.LogOptions':
+      self._log_options.event_source = event_source
+      return self
+
+    def set_sync_active(self, sync_active: bool) -> 'StructuredLogs.LogOptions':
+      self._log_options.sync_active = sync_active
+      return self
+
+    def set_max_buffer_size(
+        self, max_buffer_size: int
+    ) -> 'StructuredLogs.LogOptions':
+      self._log_options.max_buffer_size = max_buffer_size
+      return self
+
+    def set_token_bucket_options(
+        self, refresh: int, burst: int
+    ) -> 'StructuredLogs.LogOptions':
+      param = logger_service_pb2.TokenBucketOptions(
+          refresh=refresh, burst=burst
+      )
+      self._log_options.logging_budget.CopyFrom(param)
+      return self
+
+    @property
+    def log_options(self) -> logger_service_pb2.LogOptions:
+      return self._log_options
+
   def __init__(self, stub: logger_service_pb2_grpc.DataLoggerStub):
     self._stub: logger_service_pb2_grpc.DataLoggerStub = stub
 
@@ -692,12 +719,11 @@ class StructuredLogs:
   @error_handling.retry_on_grpc_unavailable
   def set_log_options(
       self,
-      event_source: str,
-      log_options: logger_service_pb2.LogOptions,
+      log_options: Dict[str, LogOptions],
   ) -> None:
     """Configures log options for an event_source."""
     log_options_request = logger_service_pb2.SetLogOptionsRequest(
-        event_source=event_source, log_options=log_options
+        log_options={e: i.log_options for e, i in log_options.items()}
     )
     self._stub.SetLogOptions(log_options_request)
 
@@ -705,14 +731,25 @@ class StructuredLogs:
   def get_log_options(
       self,
       event_source: str,
-  ) -> logger_service_pb2.LogOptions:
+  ) -> LogOptions:
     """Returns the log options for an event source."""
     log_options_request: logger_service_pb2.GetLogOptionsRequest = (
         logger_service_pb2.GetLogOptionsRequest(
             event_source=event_source,
         )
     )
-    return self._stub.GetLogOptions(log_options_request).log_options
+
+    ret = self._stub.GetLogOptions(log_options_request).log_options
+    return (
+        self.LogOptions()
+        .set_event_source(ret.event_source)
+        .set_sync_active(ret.sync_active)
+        .set_max_buffer_size(ret.max_buffer_size)
+        .set_token_bucket_options(
+            ret.logging_budget.refresh,
+            ret.logging_budget.burst,
+        )
+    )
 
   @error_handling.retry_on_grpc_unavailable
   def query(

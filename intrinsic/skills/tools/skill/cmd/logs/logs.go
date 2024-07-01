@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"intrinsic/assets/cmdutils"
+	"intrinsic/assets/imageutils"
 	"intrinsic/skills/tools/skill/cmd"
-	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
-	"intrinsic/skills/tools/skill/cmd/imageutil"
 	"intrinsic/skills/tools/skill/cmd/solutionutil"
 	"intrinsic/tools/inctl/auth"
 )
@@ -48,7 +48,7 @@ var (
 	verboseOut   io.Writer = os.Stderr
 )
 
-var cmdFlags = cmdutil.NewCmdFlags()
+var cmdFlags = cmdutils.NewCmdFlags()
 
 type bodyReader = func(context.Context, io.Reader) (string, error)
 
@@ -67,7 +67,7 @@ func createFrontendURL(projectName string, clusterName string) *url.URL {
 }
 
 type cmdParams struct {
-	targetType  imageutil.TargetType
+	targetType  imageutils.TargetType
 	target      string
 	frontendURL *url.URL
 	follow      bool
@@ -80,18 +80,18 @@ func runLogsCmd(ctx context.Context, params *cmdParams, w io.Writer) error {
 	skillID := ""
 	var err error
 	switch params.targetType {
-	case imageutil.Build:
-		skillID, err = imageutil.ExtractSkillIDFromBuildTargetLabel(params.target)
+	case imageutils.Build:
+		skillID, err = imageutils.ExtractSkillIDFromBuildTargetLabel(params.target)
 		if err != nil {
 			return fmt.Errorf(
 				"could not extract a skill id from the given build target %s: %w",
 				params.target, err)
 		}
-	case imageutil.ID:
+	case imageutils.ID:
 		skillID = params.target
 	default:
 		return fmt.Errorf("unknown or missing target type, select one of: %s, %s",
-			imageutil.ID, imageutil.Build)
+			imageutils.ID, imageutils.Build)
 	}
 
 	verboseOut.Write([]byte(fmt.Sprintf("%s\n", params.frontendURL.Path)))
@@ -260,7 +260,7 @@ var logsCmd = &cobra.Command{
 		_, verboseDebug = os.LookupEnv(verboseDebugEnvName)
 		verboseOut = cmd.OutOrStderr()
 
-		context := cmdFlags.GetString(cmdutil.KeyContext)
+		context := cmdFlags.GetString(cmdutils.KeyContext)
 		project := cmdFlags.GetFlagProject()
 		org := cmdFlags.GetFlagOrganization()
 		var serverAddr string
@@ -270,7 +270,7 @@ var logsCmd = &cobra.Command{
 		} else {
 			serverAddr = fmt.Sprintf("dns:///www.endpoints.%s.cloud.goog:443", project)
 		}
-		solution := cmdFlags.GetString(cmdutil.KeySolution)
+		solution := cmdFlags.GetString(cmdutils.KeySolution)
 
 		ctx, conn, err := dialerutil.DialConnectionCtx(cmd.Context(), dialerutil.DialInfoParams{
 			Address:  serverAddr,
@@ -293,7 +293,7 @@ var logsCmd = &cobra.Command{
 		}
 
 		return runLogsCmd(ctx, &cmdParams{
-			targetType:  imageutil.TargetType(cmdFlags.GetString(cmdutil.KeyType)),
+			targetType:  imageutils.TargetType(cmdFlags.GetString(cmdutils.KeyType)),
 			target:      target,
 			frontendURL: createFrontendURL(project, cluster),
 			follow:      cmdFlags.GetBool(keyFollow),
@@ -309,18 +309,18 @@ func init() {
 	cmdFlags.SetCommand(logsCmd)
 
 	cmdFlags.AddFlagsProjectOrg()
-	cmdFlags.OptionalEnvString(cmdutil.KeyContext, "", "The Kubernetes cluster to use.")
-	cmdFlags.OptionalEnvString(cmdutil.KeySolution, "", "The solution to use.")
+	cmdFlags.OptionalEnvString(cmdutils.KeyContext, "", "The Kubernetes cluster to use.")
+	cmdFlags.OptionalEnvString(cmdutils.KeySolution, "", "The solution to use.")
 
-	cmdFlags.RequiredString(cmdutil.KeyType, fmt.Sprintf(`The target's type:
+	cmdFlags.RequiredString(cmdutils.KeyType, fmt.Sprintf(`The target's type:
 %s	skill id
-%s	build target of the skill image`, imageutil.ID, imageutil.Build))
+%s	build target of the skill image`, imageutils.ID, imageutils.Build))
 	cmdFlags.OptionalBool(keyFollow, false, "Whether to follow the skill logs.")
 	cmdFlags.OptionalBool(keyTimestamps, false, "Whether to include timestamps on each log line.")
 	cmdFlags.OptionalInt(keyTailLines, 10, "The number of recent log lines to display. An input number less than 0 shows all log lines.")
 	cmdFlags.OptionalString(keySinceSec, "", "Show logs starting since value. Value is either relative (e.g 10m) or \ndate time in RFC3339 format (e.g: 2006-01-02T15:04:05Z07:00)")
 
-	logsCmd.MarkFlagsMutuallyExclusive(cmdutil.KeyContext, cmdutil.KeySolution)
+	logsCmd.MarkFlagsMutuallyExclusive(cmdutils.KeyContext, cmdutils.KeySolution)
 }
 
 func getAuthToken(project string) (*auth.ProjectToken, error) {

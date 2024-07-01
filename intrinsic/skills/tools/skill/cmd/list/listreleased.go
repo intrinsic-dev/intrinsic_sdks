@@ -7,30 +7,17 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"intrinsic/assets/cmdutils"
 	skillCmd "intrinsic/skills/tools/skill/cmd"
-	"intrinsic/skills/tools/skill/cmd/cmdutil"
-	"intrinsic/skills/tools/skill/cmd/dialerutil"
 )
 
-var cmdFlags = cmdutil.NewCmdFlags()
+var cmdFlags = cmdutils.NewCmdFlags()
 
 var listReleasedCmd = &cobra.Command{
 	Use:   "list_released",
 	Short: "List released skills in the catalog",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		project := cmdFlags.GetFlagProject()
-		org := cmdFlags.GetFlagOrganization()
-
-		_, conn, err := dialerutil.DialConnectionCtx(cmd.Context(), dialerutil.DialInfoParams{
-			CredName: project,
-			CredOrg:  org,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create client connection: %v", err)
-		}
-		defer conn.Close()
-
 		return fmt.Errorf("unimplemented")
 
 		return nil

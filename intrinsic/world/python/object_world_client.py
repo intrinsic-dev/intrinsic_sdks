@@ -10,6 +10,9 @@ import re
 from typing import Dict, List, Optional, Tuple, Union, cast
 
 import grpc
+from intrinsic.geometry.service import geometry_service_pb2
+from intrinsic.geometry.service import geometry_service_pb2_grpc
+from intrinsic.icon.equipment import icon_equipment_pb2
 from intrinsic.icon.proto import cart_space_pb2
 from intrinsic.kinematics.types import joint_limits_pb2
 from intrinsic.math.python import data_types
@@ -40,6 +43,8 @@ INCLUDE_FINAL_ENTITY = object_world_refs_pb2.ObjectEntityFilter(
 INCLUDE_ALL_ENTITIES = object_world_refs_pb2.ObjectEntityFilter(
     include_all_entities=True
 )
+
+ICON2_POSITION_PART_KEY = 'Icon2PositionPart'
 
 
 class ProductPartDoesNotExistError(ValueError):
@@ -121,8 +126,19 @@ class ObjectWorldClient:
       self,
       world_id: str,
       stub: object_world_service_pb2_grpc.ObjectWorldServiceStub,
+      geometry_service_stub: Optional[
+          geometry_service_pb2_grpc.GeometryServiceStub
+      ] = None,
   ):
     self._stub: object_world_service_pb2_grpc.ObjectWorldServiceStub = stub
+
+    if geometry_service_stub is not None:
+      self._geometry_service_stub: (
+          geometry_service_pb2_grpc.GeometryServiceStub
+      ) = geometry_service_stub
+    else:
+      self._geometry_service_stub = None
+
     self._world_id: str = world_id
 
   def list_object_names(self) -> List[object_world_ids.WorldObjectName]:
@@ -331,6 +347,20 @@ class ObjectWorldClient:
       ValueError: The requested object has no kinematic component and cannot be
       used as kinematic object.
     """
+    if (
+        isinstance(object_reference, resource_handle_pb2.ResourceHandle)
+        and ICON2_POSITION_PART_KEY in object_reference.resource_data
+    ):
+      icon_position_part = icon_equipment_pb2.Icon2PositionPart()
+      object_reference.resource_data[ICON2_POSITION_PART_KEY].contents.Unpack(
+          icon_position_part
+      )
+      if icon_position_part.world_robot_collection_name:
+        return self.get_kinematic_object(
+            object_world_ids.WorldObjectName(
+                icon_position_part.world_robot_collection_name
+            )
+        )
     return object_world_resources.KinematicObject(
         self._get_object_proto(object_reference), self._stub
     )
@@ -1168,6 +1198,68 @@ class ObjectWorldClient:
         raise ProductPartDoesNotExistError(err) from err
 
       raise
+
+  def register_geometry(
+      self,
+      *,
+      geometry: geometry_service_pb2.CreateGeometryRequest,
+  ) -> str:
+    """Registers geometry so that it can be referenced to create an object.
+
+    Arguments:
+      geometry: Geometry data to be registered.
+
+    Raises:
+      RuntimeError: if ObjectWorldClient was not configured with the geometry
+      service client.
+
+    Returns:
+      Geometry id corresponding to the registered geometry.
+    """
+
+    if self._geometry_service_stub is None:
+      raise RuntimeError(
+          'ObjectWorldClient has not been configured to register geometry data.'
+      )
+
+    return self._geometry_service_stub.CreateGeometry(geometry).geometry_id
+
+  def create_geometry_object(
+      self,
+      *,
+      object_name: object_world_ids.WorldObjectName,
+      geometry_component: geometry_component_pb2.GeometryComponent,
+      parent: Optional[object_world_resources.WorldObject] = None,
+      parent_object_t_created_object: data_types.Pose3 = data_types.Pose3(),
+  ) -> None:
+    """Adds a geometry object to the world.
+
+    Arguments:
+      object_name: The name of the newly created object.
+      geometry_component: Geometry information for the object to be added.
+      parent: The parent object the new object will be attached to.
+      parent_object_t_created_object: The transform between the parent object
+        and the new object.
+    """
+    req = object_world_updates_pb2.CreateObjectRequest(
+        world_id=self._world_id,
+        name=object_name,
+        name_is_global_alias=True,
+        parent_object_t_created_object=math_proto_conversion.pose_to_proto(
+            parent_object_t_created_object
+        ),
+        create_single_entity_object=object_world_updates_pb2.ObjectSpecForSingleEntityObject(
+            geometry_component=geometry_component
+        ),
+    )
+
+    if parent is not None:
+      req.parent_object.reference.CopyFrom(parent.reference)
+    else:
+      req.parent_object.reference.id = object_world_ids.ROOT_OBJECT_ID
+    req.parent_object.entity_filter.CopyFrom(INCLUDE_FINAL_ENTITY)
+
+    self._call_create_object(request=req)
 
   @error_handling.retry_on_grpc_unavailable
   def reset(self) -> None:
