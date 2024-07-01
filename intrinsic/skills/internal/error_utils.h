@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_SKILLS_INTERNAL_ERROR_UTILS_H_
 #define INTRINSIC_SKILLS_INTERNAL_ERROR_UTILS_H_
@@ -46,6 +44,7 @@ absl::Status ToAbslStatus(const ::grpc::Status& grpc_status);
 ::grpc::Status ToGrpcStatus(
     const absl::Status& absl_status,
     const intrinsic_proto::skills::SkillErrorInfo& error_info);
+::grpc::Status ToGrpcStatus(const ::google::rpc::Status& rpc_status);
 ::google::rpc::Status ToGoogleRpcStatus(
     const absl::Status& absl_status,
     const intrinsic_proto::skills::SkillErrorInfo& error_info);

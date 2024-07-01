@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 package bazel
 
@@ -15,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"intrinsic/tools/inctl/cmd/root"
-	"intrinsic/tools/inctl/cmd/version/version"
+	"intrinsic/tools/inctl/cmd/version"
 	"intrinsic/tools/inctl/util/printer"
 	"intrinsic/tools/inctl/util/templateutil"
 )

@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package stop defines the skill stop command which removes a skill.
 package stop
@@ -14,7 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
-	"intrinsic/skills/tools/skill/cmd/cmd"
+	"intrinsic/skills/tools/skill/cmd"
 	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 	"intrinsic/skills/tools/skill/cmd/imagetransfer"

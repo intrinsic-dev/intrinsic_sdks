@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package create defines the skill create command.
 package create
@@ -22,10 +20,10 @@ import (
 	"github.com/spf13/cobra"
 	strcase "github.com/stoewer/go-strcase"
 	"intrinsic/assets/idutils"
-	skillCmd "intrinsic/skills/tools/skill/cmd/cmd"
-	"intrinsic/tools/inctl/cmd/bazel/bazel"
+	skillCmd "intrinsic/skills/tools/skill/cmd"
+	"intrinsic/tools/inctl/cmd/bazel"
 	"intrinsic/tools/inctl/cmd/root"
-	"intrinsic/tools/inctl/cmd/version/version"
+	"intrinsic/tools/inctl/cmd/version"
 	"intrinsic/tools/inctl/util/printer"
 	"intrinsic/tools/inctl/util/templateutil"
 )

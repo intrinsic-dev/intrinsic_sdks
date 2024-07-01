@@ -1,8 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Miscellaneous image helper methods."""
+
 import io
 from typing import Optional, Tuple, Type, Union
 

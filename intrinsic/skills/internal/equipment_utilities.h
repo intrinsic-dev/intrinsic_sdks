@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_SKILLS_INTERNAL_EQUIPMENT_UTILITIES_H_
 #define INTRINSIC_SKILLS_INTERNAL_EQUIPMENT_UTILITIES_H_
@@ -20,11 +18,11 @@ absl::StatusOr<google::protobuf::RepeatedPtrField<
     intrinsic_proto::skills::EquipmentResource>>
 ReserveEquipmentRequired(
     const absl::flat_hash_map<std::string,
-                              intrinsic_proto::skills::EquipmentSelector>&
+                              intrinsic_proto::skills::ResourceSelector>&
         equipment_required,
     const google::protobuf::Map<std::string,
-                                intrinsic_proto::skills::EquipmentHandle>&
-        equipment_handles);
+                                intrinsic_proto::skills::ResourceHandle>&
+        resource_handles);
 
 }  // namespace intrinsic::skills
 

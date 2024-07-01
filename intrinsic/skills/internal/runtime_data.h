@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // This file contains data types that are used by the skill service at runtime
 // to provide our internal framework access to metadata about skills. Classes
@@ -110,22 +108,21 @@ class ExecutionOptions {
 class ResourceData {
  public:
   ResourceData() = default;
-  explicit ResourceData(
-      const absl::flat_hash_map<std::string,
-                                intrinsic_proto::skills::EquipmentSelector>&
-          resources_required);
+  explicit ResourceData(const absl::flat_hash_map<
+                        std::string, intrinsic_proto::skills::ResourceSelector>&
+                            resources_required);
 
   ResourceData(const ResourceData& other) = default;
   ResourceData& operator=(const ResourceData& other) = default;
 
   const absl::flat_hash_map<std::string,
-                            intrinsic_proto::skills::EquipmentSelector>&
+                            intrinsic_proto::skills::ResourceSelector>&
   GetRequiredResources() const {
     return resources_required_;
   }
 
  private:
-  absl::flat_hash_map<std::string, intrinsic_proto::skills::EquipmentSelector>
+  absl::flat_hash_map<std::string, intrinsic_proto::skills::ResourceSelector>
       resources_required_ = {};
 };
 

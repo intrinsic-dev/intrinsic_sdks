@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package auth provides authorization client and client side library.
 package auth
@@ -10,14 +8,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"intrinsic/tools/inctl/auth/auth"
+	"intrinsic/tools/inctl/auth"
 	"intrinsic/tools/inctl/cmd/root"
 	"intrinsic/tools/inctl/util/printer"
 )
 
 const (
-	keyProject      = "project"
-	keyOrganization = "org"
 	keyPortal       = "portal"
 	keyProjectShort = "p"
 	keyAlias        = "alias"

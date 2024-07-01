@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@rules_python//python:defs.bzl", "py_test")
 
@@ -35,6 +33,8 @@ exports_files(
         "BUILD.retrying",
         "BUILD.sysroot",
         "BUILD.workspace_root",
+        "LICENSE",
+        "README.md",
         "WORKSPACE",
         "copy.bara.sky",
         "go.mod",

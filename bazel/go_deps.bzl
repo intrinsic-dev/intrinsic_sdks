@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 # buildifier: disable=module-docstring
 load("@bazel_gazelle//:deps.bzl", "go_repository")
@@ -1105,6 +1103,7 @@ def go_dependencies():
 
     go_repository(
         name = "com_github_googleapis_gax_go_v2",
+        build_file_proto_mode = "disable",
         importpath = "github.com/googleapis/gax-go/v2",
         sum = "h1:A+gCJKdRfqXkr+BIRGtZLibNXf0m1f9E4HG56etFpas=",
         version = "v2.12.0",
@@ -1328,6 +1327,12 @@ def go_dependencies():
         importpath = "github.com/imdario/mergo",
         sum = "h1:lFzP57bqS/wsqKssCGmtLAb8A0wKjLGrve2q3PPVcBk=",
         version = "v0.3.13",
+    )
+    go_repository(
+        name = "cat_dario_mergo",
+        importpath = "dario.cat/mergo",
+        sum = "h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=",
+        version = "v1.0.0",
     )
 
     go_repository(

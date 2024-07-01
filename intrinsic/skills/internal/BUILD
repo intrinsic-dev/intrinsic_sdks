@@ -1,13 +1,10 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 # This directory should contain code that is used internally to our platform.
 # Some files may still be exported as part of the Skills SDK, but they should
 # not needed to be included directly when authoring a Skill.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
-load("//bazel:go_macros.bzl", "go_library", "go_test")
 load("@io_bazel_rules_docker//python3:image.bzl", "py3_image")
 load("@rules_python//python:defs.bzl", "py_library")
 load("@rules_python//python:packaging.bzl", "py_package", "py_wheel")
@@ -71,7 +68,6 @@ cc_library(
     srcs = ["error_utils.cc"],
     hdrs = ["error_utils.h"],
     deps = [
-        "//intrinsic/icon/release:status_helpers",
         "//intrinsic/skills/proto:error_cc_proto",
         "@com_github_grpc_grpc//:grpc++_error_details",
         "@com_github_grpc_grpc//:grpc++_public_hdrs",
@@ -112,31 +108,83 @@ py_library(
 )
 
 cc_library(
-    name = "execute_context_impl",
-    srcs = ["execute_context_impl.cc"],
-    hdrs = ["execute_context_impl.h"],
+    name = "get_footprint_context_impl",
+    srcs = ["get_footprint_context_impl.cc"],
+    hdrs = ["get_footprint_context_impl.h"],
     deps = [
-        ":skill_registry_client_interface",
         "//intrinsic/icon/release:status_helpers",
         "//intrinsic/logging/proto:context_cc_proto",
         "//intrinsic/motion_planning:motion_planner_client",
-        "//intrinsic/motion_planning/proto:motion_planner_service_cc_grpc_proto",
         "//intrinsic/skills/cc:equipment_pack",
-        "//intrinsic/skills/cc:skill_canceller",
         "//intrinsic/skills/cc:skill_interface",
         "//intrinsic/skills/proto:equipment_cc_proto",
         "//intrinsic/skills/proto:footprint_cc_proto",
-        "//intrinsic/skills/proto:skill_service_cc_proto",
-        "//intrinsic/skills/proto:skills_cc_proto",
+        "//intrinsic/world/objects:frame",
+        "//intrinsic/world/objects:kinematic_object",
         "//intrinsic/world/objects:object_world_client",
-        "//intrinsic/world/proto:object_world_service_cc_grpc_proto",
-        "@com_github_grpc_grpc//:grpc++_public_hdrs",
-        "@com_google_absl//absl/base:core_headers",
+        "//intrinsic/world/objects:object_world_ids",
+        "//intrinsic/world/objects:world_object",
         "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
+    ],
+)
+
+py_library(
+    name = "get_footprint_context_impl_py",
+    srcs = ["get_footprint_context_impl.py"],
+    deps = [
+        "//intrinsic/geometry/service:geometry_service_py_pb2_grpc",
+        "//intrinsic/motion_planning:motion_planner_client_py",
+        "//intrinsic/skills/proto:equipment_py_pb2",
+        "//intrinsic/skills/python:get_footprint_context",
+        "//intrinsic/world/python:object_world_client",
+        "//intrinsic/world/python:object_world_ids",
+        "//intrinsic/world/python:object_world_resources",
+    ],
+)
+
+cc_library(
+    name = "execute_context_impl",
+    hdrs = ["execute_context_impl.h"],
+    deps = [
+        "//intrinsic/logging/proto:context_cc_proto",
+        "//intrinsic/motion_planning:motion_planner_client",
+        "//intrinsic/skills/cc:equipment_pack",
+        "//intrinsic/skills/cc:skill_canceller",
+        "//intrinsic/skills/cc:skill_interface",
+        "//intrinsic/world/objects:object_world_client",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+py_library(
+    name = "execute_context_impl_py",
+    srcs = ["execute_context_impl.py"],
+    deps = [
+        "//intrinsic/geometry/service:geometry_service_py_pb2_grpc",
+        "//intrinsic/logging/proto:context_py_pb2",
+        "//intrinsic/motion_planning:motion_planner_client_py",
+        "//intrinsic/skills/proto:equipment_py_pb2",
+        "//intrinsic/skills/python:execute_context",
+        "//intrinsic/skills/python:skill_canceller",
+        "//intrinsic/world/python:object_world_client",
+    ],
+)
+
+cc_library(
+    name = "execute_context_view",
+    hdrs = ["execute_context_view.h"],
+    deps = [
+        "//intrinsic/logging/proto:context_cc_proto",
+        "//intrinsic/motion_planning:motion_planner_client",
+        "//intrinsic/skills/cc:equipment_pack",
+        "//intrinsic/skills/cc:skill_canceller",
+        "//intrinsic/skills/cc:skill_interface",
+        "//intrinsic/world/objects:object_world_client",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -149,6 +197,8 @@ py_library(
     ],
     deps = [
         ":module_utils",
+        ":runtime_data_py",
+        ":single_skill_factory_py",
         ":skill_init_py",
         "//intrinsic/skills/proto:skill_service_config_py_pb2",
         "//intrinsic/skills/python:skill_interface",
@@ -166,6 +216,8 @@ py_library(
     deps = [
         ":default_parameters_py",
         ":error_utils_py",
+        ":execute_context_impl_py",
+        ":get_footprint_context_impl_py",
         ":runtime_data_py",
         ":skill_repository_py",
         "//intrinsic/assets:id_utils_py",
@@ -408,6 +460,7 @@ cc_library(
         ":skill_repository",
         "//intrinsic/assets:id_utils",
         "//intrinsic/icon/release:status_helpers",
+        "//intrinsic/motion_planning:motion_planner_client",
         "//intrinsic/motion_planning/proto:motion_planner_service_cc_grpc_proto",
         "//intrinsic/skills/cc:equipment_pack",
         "//intrinsic/skills/cc:skill_canceller",
@@ -418,10 +471,12 @@ cc_library(
         "//intrinsic/skills/proto:skills_cc_proto",
         "//intrinsic/util/proto:merge",
         "//intrinsic/util/thread",
+        "//intrinsic/world/objects:object_world_client",
         "//intrinsic/world/proto:object_world_service_cc_grpc_proto",
         "@com_github_grpc_grpc//:grpc++_public_hdrs",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
@@ -522,37 +577,6 @@ cc_binary(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
-        "@com_google_protobuf//:protobuf",
-    ],
-)
-
-cc_library(
-    name = "get_footprint_context_impl",
-    srcs = ["get_footprint_context_impl.cc"],
-    hdrs = ["get_footprint_context_impl.h"],
-    deps = [
-        ":default_parameters",
-        ":skill_registry_client_interface",
-        "//intrinsic/icon/release:status_helpers",
-        "//intrinsic/logging/proto:context_cc_proto",
-        "//intrinsic/motion_planning:motion_planner_client",
-        "//intrinsic/motion_planning/proto:motion_planner_service_cc_grpc_proto",
-        "//intrinsic/skills/cc:equipment_pack",
-        "//intrinsic/skills/cc:skill_interface",
-        "//intrinsic/skills/proto:equipment_cc_proto",
-        "//intrinsic/skills/proto:footprint_cc_proto",
-        "//intrinsic/skills/proto:skill_service_cc_proto",
-        "//intrinsic/skills/proto:skills_cc_proto",
-        "//intrinsic/world/objects:frame",
-        "//intrinsic/world/objects:kinematic_object",
-        "//intrinsic/world/objects:object_world_client",
-        "//intrinsic/world/objects:object_world_ids",
-        "//intrinsic/world/objects:world_object",
-        "//intrinsic/world/proto:object_world_service_cc_grpc_proto",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
     ],
 )

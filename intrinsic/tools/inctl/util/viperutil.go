@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package viperutil provides utilities that make the integration of viper and cobra easier.
 package viperutil
@@ -21,6 +19,16 @@ var nothingToBindToEnv = func(name string) bool { return false }
 // Flags are bound to a variable of the same name if bindToEnv returns true for it
 func BindToViper(flags *pflag.FlagSet, bindToEnv func(name string) bool) *viper.Viper {
 	v := viper.New()
+
+	BindFlags(v, flags, bindToEnv)
+
+	return v
+}
+
+// BindFlags takes a flagset populated for use with pflags or cobra and binds the flags to viper.
+//
+// Flags are bound to a variable of the same name if bindToEnv returns true for it
+func BindFlags(v *viper.Viper, flags *pflag.FlagSet, bindToEnv func(name string) bool) {
 	// Prefix have to be set before we are going to bind ANY flags into ENV.
 	// This behavior is weirdly implemented in Viper.
 	v.SetEnvPrefix(viperEnvPrefix)
@@ -33,8 +41,6 @@ func BindToViper(flags *pflag.FlagSet, bindToEnv func(name string) bool) *viper.
 			_ = v.BindEnv(flag.Name)
 		}
 	})
-
-	return v
 }
 
 // BindToListEnv provides a suitable 2nd argument to BindToViper that binds for all flags provides as arguments.

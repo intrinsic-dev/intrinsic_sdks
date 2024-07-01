@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_SKILLS_TESTING_NO_OP_SKILL_H_
 #define INTRINSIC_SKILLS_TESTING_NO_OP_SKILL_H_
@@ -11,6 +9,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "google/protobuf/descriptor.h"
+#include "google/protobuf/message.h"
 #include "intrinsic/skills/cc/skill_interface.h"
 #include "intrinsic/skills/proto/equipment.pb.h"
 #include "intrinsic/skills/proto/skill_service.pb.h"
@@ -23,12 +22,12 @@ class NoOpSkill : public SkillInterface {
 
   std::string Name() const override;
 
-  absl::flat_hash_map<std::string, intrinsic_proto::skills::EquipmentSelector>
+  absl::flat_hash_map<std::string, intrinsic_proto::skills::ResourceSelector>
   EquipmentRequired() const override;
 
   const google::protobuf::Descriptor* GetParameterDescriptor() const override;
 
-  absl::StatusOr<intrinsic_proto::skills::ExecuteResult> Execute(
+  absl::StatusOr<std::unique_ptr<google::protobuf::Message>> Execute(
       const ExecuteRequest& execute_request, ExecuteContext& context) override;
 };
 

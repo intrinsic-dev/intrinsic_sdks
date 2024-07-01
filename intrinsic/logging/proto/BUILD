@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
@@ -15,6 +13,7 @@ proto_library(
     deps = [
         ":blob_proto",
         ":context_proto",
+        ":flowstate_event",
         "//intrinsic/executive/proto:executive_state_proto",
         "//intrinsic/icon/proto:cart_space_proto",
         "//intrinsic/icon/proto:joint_space_proto",
@@ -58,6 +57,27 @@ py_proto_library(
 proto_library(
     name = "context_proto",
     srcs = ["context.proto"],
+)
+
+proto_library(
+    name = "flowstate_event",
+    srcs = ["flowstate_event.proto"],
+    visibility = ["//intrinsic/production:__subpackages__"],
+)
+
+cc_proto_library(
+    name = "flowstate_event_cc_proto",
+    deps = [":flowstate_event"],
+)
+
+go_proto_library(
+    name = "flowstate_event_go_proto",
+    deps = [":flowstate_event"],
+)
+
+py_proto_library(
+    name = "flowstate_event_py_pb2",
+    deps = [":flowstate_event"],
 )
 
 py_proto_library(
@@ -124,6 +144,18 @@ cc_grpc_library(
     srcs = [":pubsub_listener_service"],
     grpc_only = True,
     deps = [":pubsub_listener_service_cc_proto"],
+)
+
+py_proto_library(
+    name = "pubsub_listener_service_py_pb2",
+    deps = [":pubsub_listener_service"],
+)
+
+py_grpc_library(
+    name = "pubsub_listener_service_py_pb2_grpc",
+    srcs = [":pubsub_listener_service"],
+    grpc_library = requirement("grpcio"),
+    deps = [":pubsub_listener_service_py_pb2"],
 )
 
 proto_library(

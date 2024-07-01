@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package logs defines a skill logs command which prints skill logs.
 package logs
@@ -17,12 +15,12 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"intrinsic/skills/tools/skill/cmd/cmd"
+	"intrinsic/skills/tools/skill/cmd"
 	"intrinsic/skills/tools/skill/cmd/cmdutil"
 	"intrinsic/skills/tools/skill/cmd/dialerutil"
 	"intrinsic/skills/tools/skill/cmd/imageutil"
 	"intrinsic/skills/tools/skill/cmd/solutionutil"
-	"intrinsic/tools/inctl/auth/auth"
+	"intrinsic/tools/inctl/auth"
 )
 
 const (

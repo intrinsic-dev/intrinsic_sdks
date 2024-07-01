@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/skills/internal/runtime_data.h"
 
@@ -51,7 +49,7 @@ ExecutionOptions::ExecutionOptions(bool supports_cancellation,
 
 ResourceData::ResourceData(
     const absl::flat_hash_map<std::string,
-                              intrinsic_proto::skills::EquipmentSelector>&
+                              intrinsic_proto::skills::ResourceSelector>&
         resources_required)
     : resources_required_(resources_required) {}
 
@@ -92,10 +90,10 @@ absl::StatusOr<SkillRuntimeData> GetRuntimeDataFrom(
                                  .execution_options()
                                  .supports_cancellation()),
       ResourceData({skill_service_config.skill_description()
-                        .equipment_selectors()
+                        .resource_selectors()
                         .begin(),
                     skill_service_config.skill_description()
-                        .equipment_selectors()
+                        .resource_selectors()
                         .end()}),
       skill_service_config.skill_description().id());
 }

@@ -1,12 +1,11 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
 package intrinsic_proto.executive;
 
 import "google/protobuf/any.proto";
+import "intrinsic/executive/proto/annotations.proto";
 import "intrinsic/executive/proto/any_list.proto";
 import "intrinsic/executive/proto/any_with_assignments.proto";
 import "intrinsic/executive/proto/behavior_call.proto";
@@ -96,12 +95,12 @@ message BehaviorTree {
 
     // This is only set by the executive on retrieval. It is ignored when
     // uploading a tree.
-    optional State state = 7;
+    optional State state = 7 [(output_only) = true];
 
     // This is only set by the executive and ignored when loading a tree. The
     // field is set if and only if the state is FINISHED and reflects the
     // outcome of the evaluation of this condition.
-    optional bool satisfied = 8;
+    optional bool satisfied = 8 [(output_only) = true];
   }
 
   // Children in the sequence will be executed in the given order.
@@ -291,7 +290,7 @@ message BehaviorTree {
     // parameterizable behavior tree.
     // This is only set by the executive on retrieval. It is an error when
     // uploading a tree.
-    optional BehaviorTree called_tree_state = 4;
+    optional BehaviorTree called_tree_state = 4 [(output_only) = true];
 
     reserved "call_skill";
     reserved 2;
@@ -391,6 +390,26 @@ message BehaviorTree {
       FAILED_EXECUTION = 2;  // error while executing the tree
     }
 
+    message ExecutionSettings {
+      enum Mode {
+        UNSPECIFIED = 0;
+        NORMAL = 1;
+        DISABLED = 2;
+      }
+      Mode mode = 1;
+
+      // This is a subset of the State enum.
+      enum DisabledResultState {
+        DISABLED_RESULT_STATE_UNSPECIFIED = 0;
+        SUCCEEDED = 1;
+        FAILED = 2;
+      }
+      // If DISABLED, do not set the resulting state based on execution
+      // semantics, but force the resulting state. Only SUCCEEDED or FAILED are
+      // valid.
+      optional DisabledResultState disabled_result_state = 2;
+    }
+
     message Decorators {
       // Condition to denote whether a SELECTED node can transition to RUNNING.
       // If the condition is unsatisfied when a node is selected the node
@@ -412,6 +431,8 @@ message BehaviorTree {
       optional ExtensionPointType extension_point = 2;
 
       optional Breakpoint.Type breakpoint = 3;
+
+      optional ExecutionSettings execution_settings = 4;
     }
 
     oneof node_type {
@@ -433,8 +454,8 @@ message BehaviorTree {
 
     // This is only set on retrieval by the executive. It is ignored when
     // uploading a tree.
-    optional State state = 13;
-    optional FailureReason failure_reason = 14;
+    optional State state = 13 [(output_only) = true];
+    optional FailureReason failure_reason = 14 [(output_only) = true];
 
     // An optional (display) name for the node.
     optional string name = 15;
@@ -518,11 +539,11 @@ message BehaviorTree {
 
   // The blackboard scope that any blackboard key in this behavior tree is in.
   // This is an output only field.
-  optional string blackboard_scope = 8;
+  optional string blackboard_scope = 8 [(output_only) = true];
 
   // This is only set on retrieval by the executive. It is ignored when
   // uploading a tree.
-  optional State state = 7;
+  optional State state = 7 [(output_only) = true];
 
   intrinsic_proto.skills.Skill description = 4;
   string return_value_expression = 5;

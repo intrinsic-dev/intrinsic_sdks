@@ -1,10 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
-load("//bazel:go_macros.bzl", "go_grpc_library", "go_proto_library")
 load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_grpc_library", "py_proto_library")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
@@ -342,27 +339,8 @@ py_proto_library(
 )
 
 proto_library(
-    name = "acontis_ecat_device_proto",
-    srcs = ["acontis_ecat_device.proto"],
-    deps = [
-        "@com_google_protobuf//:timestamp_proto",
-    ],
-)
-
-cc_proto_library(
-    name = "acontis_ecat_device_cc_proto",
-    deps = [":acontis_ecat_device_proto"],
-)
-
-py_proto_library(
-    name = "acontis_ecat_device_py_pb2",
-    deps = [":acontis_ecat_device_proto"],
-)
-
-proto_library(
     name = "icon_protos",
     deps = [
-        ":acontis_ecat_device_proto",
         ":blended_cartesian_move_proto",
         ":cart_space_proto",
         ":generic_part_config_proto",

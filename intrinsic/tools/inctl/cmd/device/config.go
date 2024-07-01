@@ -1,11 +1,10 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 package device
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,9 +16,10 @@ import (
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/spf13/cobra"
 	"go.uber.org/multierr"
-	"intrinsic/frontend/cloud/devicemanager/shared/shared"
+	"intrinsic/frontend/cloud/devicemanager/shared"
 	"intrinsic/tools/inctl/cmd/device/projectclient"
 	"intrinsic/tools/inctl/cmd/root"
+	"intrinsic/tools/inctl/util/orgutil"
 	"intrinsic/tools/inctl/util/printer"
 )
 
@@ -59,8 +59,8 @@ var configGetCmd = &cobra.Command{
 			return err
 		}
 
-		projectName := viperLocal.GetString(keyProject)
-		orgName := viperLocal.GetString(keyOrganization)
+		projectName := viperLocal.GetString(orgutil.KeyProject)
+		orgName := viperLocal.GetString(orgutil.KeyOrganization)
 
 		client, err := projectclient.Client(projectName, orgName)
 		if err != nil {
@@ -156,6 +156,43 @@ func applyConfig(ctx context.Context, client *projectclient.AuthedClient, cluste
 	return nil
 }
 
+func setConfig(ctx context.Context, client *projectclient.AuthedClient, clusterName, deviceID, config string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
+	const timeoutWarning = "Warning: Timeout while sending config to the device. This may indicate that the config is unusable, but could also be a transient network error."
+	resp, err := client.PostDevice(ctx, clusterName, deviceID, "relay/v1alpha1/config/network", strings.NewReader(config))
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			fmt.Println(timeoutWarning)
+			return nil
+		}
+		if errors.Is(err, projectclient.ErrNotFound) {
+			fmt.Fprintf(os.Stderr, "Cluster does not exist. Either it does not exist, or you don't have access to it.\n")
+			return err
+		}
+
+		return fmt.Errorf("post config: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// Do nothing
+	case http.StatusGatewayTimeout:
+		fmt.Println(timeoutWarning)
+		return nil
+	case http.StatusNotFound:
+		fmt.Fprintf(os.Stderr, "Cluster does not exist. Either it does not exist, or you don't have access to it.\n")
+		return fmt.Errorf("http code %v", resp.StatusCode)
+	default:
+		io.Copy(os.Stderr, resp.Body)
+		return fmt.Errorf("server returned error: %v", resp.StatusCode)
+	}
+
+	return nil
+}
+
 var configSetCmd = &cobra.Command{
 	Use:   "set",
 	Short: "Set the network config",
@@ -170,27 +207,21 @@ var configSetCmd = &cobra.Command{
 	},
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectName := viperLocal.GetString(keyProject)
-		orgName := viperLocal.GetString(keyOrganization)
+		configString := args[0]
+		projectName := viperLocal.GetString(orgutil.KeyProject)
+		orgName := viperLocal.GetString(orgutil.KeyOrganization)
 		client, err := projectclient.Client(projectName, orgName)
 		if err != nil {
 			return fmt.Errorf("get project client: %w", err)
 		}
 
-		resp, err := client.PostDevice(cmd.Context(), clusterName, deviceID, "relay/v1alpha1/config/network", strings.NewReader(args[0]))
-		if err != nil {
-			if errors.Is(err, projectclient.ErrNotFound) {
-				fmt.Fprintf(os.Stderr, "Cluster does not exist. Either it does not exist, or you don't have access to it.\n")
-				return err
-			}
-
-			return fmt.Errorf("post config: %w", err)
+		if err := json.Unmarshal([]byte(configString), &networkConfigInfo{}); err != nil {
+			fmt.Fprintf(os.Stderr, "Provided configuration is not a valid configuration string.\n")
+			return err
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
-			io.Copy(os.Stderr, resp.Body)
-			return fmt.Errorf("server returned error: %v", resp.StatusCode)
+		if err := setConfig(cmd.Context(), &client, clusterName, deviceID, configString); err != nil {
+			return fmt.Errorf("set config: %w", err)
 		}
 
 		if err := applyConfig(cmd.Context(), &client, clusterName, deviceID); err != nil {

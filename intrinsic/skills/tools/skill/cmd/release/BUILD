@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("//bazel:go_macros.bzl", "go_library")
 
@@ -15,6 +13,7 @@ go_library(
         "@com_github_google_go_containerregistry//pkg/authn:go_default_library",
         "@com_github_google_go_containerregistry//pkg/v1/google:go_default_library",
         "@com_github_google_go_containerregistry//pkg/v1/remote:go_default_library",
+        "@com_github_pkg_errors//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
     ],
 )

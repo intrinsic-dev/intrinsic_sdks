@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_UTIL_THREAD_LOCKSTEP_H_
 #define INTRINSIC_UTIL_THREAD_LOCKSTEP_H_
@@ -8,7 +6,7 @@
 #include <atomic>
 
 #include "absl/time/time.h"
-#include "intrinsic/icon/interprocess/remote_trigger/binary_futex.h"
+#include "intrinsic/icon/interprocess/binary_futex.h"
 #include "intrinsic/icon/utils/realtime_status.h"
 
 namespace intrinsic {

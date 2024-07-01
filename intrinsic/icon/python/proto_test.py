@@ -1,13 +1,10 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Empty test that imports ICON python protos."""
 
 from absl.testing import absltest
 
 # pylint: disable=unused-import
-from intrinsic.icon.proto import acontis_ecat_device_pb2
 from intrinsic.icon.proto import cart_space_pb2
 from intrinsic.icon.proto import ik_options_pb2
 from intrinsic.icon.proto import joint_space_pb2

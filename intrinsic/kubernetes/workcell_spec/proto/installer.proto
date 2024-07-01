@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -144,6 +142,8 @@ message InstallContainerAddonsRequest {
 }
 
 service InstallerService {
+  // Auth annotations for consumption by the following helm_chart:
+  //   cs/symbol://intrinsic/kubernetes/api_relay/cloud:api-relay
   
 
   // Returns information about the currently running (if any) workcell spec.

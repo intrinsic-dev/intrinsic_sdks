@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #include "intrinsic/icon/cc_client/session.h"
 
@@ -29,6 +27,7 @@
 #include "absl/types/variant.h"
 #include "google/protobuf/any.pb.h"
 #include "google/rpc/status.pb.h"
+#include "grpcpp/client_context.h"
 #include "grpcpp/support/sync_stream.h"
 #include "intrinsic/icon/cc_client/condition.h"
 #include "intrinsic/icon/common/id_types.h"
@@ -43,6 +42,7 @@
 #include "intrinsic/logging/proto/context.pb.h"
 #include "intrinsic/platform/common/buffers/realtime_write_queue.h"
 #include "intrinsic/util/grpc/channel_interface.h"
+#include "intrinsic/util/proto_time.h"
 #include "intrinsic/util/thread/thread.h"
 
 namespace intrinsic {
@@ -100,11 +100,16 @@ absl::StatusOr<SessionId> InitializeSessionOrEndCall(
         intrinsic_proto::icon::OpenSessionRequest,
         intrinsic_proto::icon::OpenSessionResponse>* stream,
     absl::Span<const std::string> parts,
-    const intrinsic_proto::data_logger::Context& context) {
+    const intrinsic_proto::data_logger::Context& context,
+    std::optional<absl::Time> deadline) {
   intrinsic_proto::icon::OpenSessionRequest request_message;
   *request_message.mutable_initial_session_data()
        ->mutable_allocate_parts()
        ->mutable_part() = {parts.begin(), parts.end()};
+  if (deadline.has_value()) {
+    *request_message.mutable_initial_session_data()->mutable_deadline() =
+        ::intrinsic::ToProtoClampToValidRange(*deadline);
+  }
   *request_message.mutable_log_context() = context;
 
   absl::StatusOr<intrinsic_proto::icon::OpenSessionResponse>
@@ -242,20 +247,22 @@ Action::Action(ActionInstanceId id) : id_(id) {}
 absl::StatusOr<std::unique_ptr<Session>> Session::Start(
     std::shared_ptr<ChannelInterface> icon_channel,
     absl::Span<const std::string> parts,
-    const intrinsic_proto::data_logger::Context& context) {
+    const intrinsic_proto::data_logger::Context& context,
+    std::optional<absl::Time> deadline) {
   return StartImpl(
       context, icon_channel,
       intrinsic_proto::icon::IconApi::NewStub(icon_channel->GetChannel()),
-      parts, icon_channel->GetClientContextFactory());
+      parts, icon_channel->GetClientContextFactory(), deadline);
 }
 
 absl::StatusOr<std::unique_ptr<Session>> Session::Start(
     std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
     absl::Span<const std::string> parts,
     const ClientContextFactory& client_context_factory,
-    const intrinsic_proto::data_logger::Context& context) {
+    const intrinsic_proto::data_logger::Context& context,
+    std::optional<absl::Time> deadline) {
   return StartImpl(context, nullptr, std::move(stub), parts,
-                   client_context_factory);
+                   client_context_factory, deadline);
 }
 
 absl::StatusOr<std::unique_ptr<Session>> Session::StartImpl(
@@ -263,16 +270,17 @@ absl::StatusOr<std::unique_ptr<Session>> Session::StartImpl(
     std::shared_ptr<ChannelInterface> icon_channel,
     std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
     absl::Span<const std::string> parts,
-    const ClientContextFactory& client_context_factory) {
-  std::unique_ptr<grpc::ClientContext> action_context =
+    const ClientContextFactory& client_context_factory,
+    std::optional<absl::Time> deadline) {
+  std::unique_ptr<grpc::ClientContext> start_session_context =
       client_context_factory();
   std::unique_ptr<grpc::ClientReaderWriterInterface<
       intrinsic_proto::icon::OpenSessionRequest,
       intrinsic_proto::icon::OpenSessionResponse>>
-      action_stream = stub->OpenSession(action_context.get());
+      action_stream = stub->OpenSession(start_session_context.get());
   INTRINSIC_ASSIGN_OR_RETURN(
-      SessionId session_id,
-      InitializeSessionOrEndCall(action_stream.get(), parts, context));
+      SessionId session_id, InitializeSessionOrEndCall(
+                                action_stream.get(), parts, context, deadline));
 
   // Initialize the watcher stream at session start, so that no reactions can
   // be missed by the client. This allows reactions associated with this
@@ -298,10 +306,11 @@ absl::StatusOr<std::unique_ptr<Session>> Session::StartImpl(
         "ready.");
   }
 
-  return absl::WrapUnique(new Session(
-      std::move(icon_channel), std::move(action_context),
-      std::move(action_stream), std::move(watcher_context),
-      std::move(watcher_stream), std::move(stub), session_id, context));
+  return absl::WrapUnique(
+      new Session(std::move(icon_channel), std::move(start_session_context),
+                  std::move(action_stream), std::move(watcher_context),
+                  std::move(watcher_stream), std::move(stub), session_id,
+                  context, client_context_factory));
 }
 
 Session::~Session() {
@@ -462,10 +471,6 @@ absl::Status Session::ClearAllActionsAndReactions() {
   return EndAndLogOnAbort(response.status());
 }
 
-absl::Status Session::ClearAllActions() {
-  return ClearAllActionsAndReactions();
-}
-
 absl::Status Session::StartAction(const Action& action,
                                   bool stop_active_actions) {
   return StartActions({action}, stop_active_actions);
@@ -555,27 +560,27 @@ void Session::QuitWatcherLoop() {
 
 absl::StatusOr<::intrinsic_proto::icon::StreamingOutput>
 Session::GetLatestOutput(ActionInstanceId id, absl::Time deadline) {
-  grpc::ClientContext context;
-  context.set_deadline(absl::ToChronoTime(deadline));
+  std::unique_ptr<grpc::ClientContext> context = client_context_factory_();
+  context->set_deadline(absl::ToChronoTime(deadline));
   ::intrinsic_proto::icon::GetLatestStreamingOutputRequest request;
   request.set_session_id(session_id_.value());
   request.set_action_id(id.value());
   ::intrinsic_proto::icon::GetLatestStreamingOutputResponse response;
   INTRINSIC_RETURN_IF_ERROR(
-      stub_->GetLatestStreamingOutput(&context, request, &response));
+      stub_->GetLatestStreamingOutput(context.get(), request, &response));
   return response.output();
 }
 
 absl::StatusOr<::intrinsic_proto::icon::JointTrajectoryPVA>
 Session::GetPlannedTrajectory(ActionInstanceId id) {
-  ::grpc::ClientContext context;
+  std::unique_ptr<grpc::ClientContext> context = client_context_factory_();
   ::intrinsic_proto::icon::GetPlannedTrajectoryRequest request;
   request.set_session_id(session_id_.value());
   request.set_action_id(id.value());
 
   std::unique_ptr<::grpc::ClientReaderInterface<
       ::intrinsic_proto::icon::GetPlannedTrajectoryResponse>>
-      stream = stub_->GetPlannedTrajectory(&context, request);
+      stream = stub_->GetPlannedTrajectory(context.get(), request);
 
   ::intrinsic_proto::icon::GetPlannedTrajectoryResponse response;
   std::vector<::intrinsic_proto::icon::JointTrajectoryPVA>
@@ -648,7 +653,8 @@ Session::Session(
         intrinsic_proto::icon::WatchReactionsResponse>>
         watcher_stream,
     std::unique_ptr<intrinsic_proto::icon::IconApi::StubInterface> stub,
-    SessionId session_id, const intrinsic_proto::data_logger::Context& context)
+    SessionId session_id, const intrinsic_proto::data_logger::Context& context,
+    ClientContextFactory client_context_factory)
     : channel_(std::move(icon_channel)),
       session_ended_(false),
       action_context_(std::move(action_context)),
@@ -657,7 +663,8 @@ Session::Session(
       watcher_stream_(std::move(watcher_stream)),
       watcher_read_thread_(&Session::WatchReactionsThreadBody, this),
       stub_(std::move(stub)),
-      session_id_(session_id) {}
+      session_id_(session_id),
+      client_context_factory_(client_context_factory) {}
 
 absl::Status Session::CheckReactionHandlesUnique(
     absl::Span<const ReactionDescriptor> reaction_descriptors) const {

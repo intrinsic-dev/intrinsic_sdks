@@ -1,25 +1,27 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 // Package cluster contains the externally available commands for cluster handling.
 package cluster
 
 import (
+	"github.com/spf13/viper"
 	"intrinsic/tools/inctl/cmd/root"
 	"intrinsic/tools/inctl/util/cobrautil"
+	"intrinsic/tools/inctl/util/orgutil"
 )
 
-var (
-	// FlagProject holds the value of the --project flag.
-	FlagProject string
+const (
+	// KeyIntrinsic is used across inctl cluster to specify the prefix for viper's env integration.
+	KeyIntrinsic = "intrinsic"
 )
+
+// ClusterCmdViper is used across inctl cluster to integrate cmdline parsing with environment variables.
+var ClusterCmdViper = viper.New()
 
 // ClusterCmd is the `inctl cluster` command.
-var ClusterCmd = cobrautil.ParentOfNestedSubcommands(
-	root.ClusterCmdName, "Workcell cluster handling")
+var ClusterCmd = orgutil.WrapCmd(cobrautil.ParentOfNestedSubcommands(
+	root.ClusterCmdName, "Workcell cluster handling"), ClusterCmdViper)
 
 func init() {
 	root.RootCmd.AddCommand(ClusterCmd)
-	ClusterCmd.PersistentFlags().StringVarP(&FlagProject, "project", "p", "", "The GCP cloud project to use.")
 }

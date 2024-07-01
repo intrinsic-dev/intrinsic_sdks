@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 #ifndef INTRINSIC_MATH_PROTO_CONVERSION_H_
 #define INTRINSIC_MATH_PROTO_CONVERSION_H_
@@ -21,7 +19,8 @@ intrinsic::eigenmath::Vector3d FromProto(const Point& point);
 intrinsic::eigenmath::Quaterniond FromProto(const Quaternion& quaternion);
 absl::StatusOr<intrinsic::Pose> FromProto(const Pose& pose);
 // Only checks if the quaternion of the pose is roughly normalized, in which
-// case it normalizes the input quaternion before generating the pose.
+// case it normalizes the input quaternion before generating the pose. If it is
+// as normalized as expected in `FromProto`, then no normalization is performed.
 absl::StatusOr<intrinsic::Pose> FromProtoNormalized(const Pose& pose);
 
 }  // namespace intrinsic_proto

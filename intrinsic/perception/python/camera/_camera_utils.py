@@ -1,8 +1,7 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 """Camera misc helper methods."""
+
 from __future__ import annotations
 
 from typing import Optional, Tuple

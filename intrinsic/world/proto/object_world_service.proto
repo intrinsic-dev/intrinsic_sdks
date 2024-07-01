@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -490,7 +488,7 @@ message ListWorldsResponse {
 
 message ObjectFullPath {
   // The list of object names from the root object(excluding root) to the
-  // addresssed object(including addresssed object). An empty list indicates the
+  // addressed object(including addressed object). An empty list indicates the
   // root object.
   repeated string object_names = 1;
 }
@@ -504,7 +502,7 @@ message GetObjectRequest {
     ObjectReference object = 2;
 
     // Equipment that is associated with the object to be queried.
-    string equipment_handle_name = 4;
+    string resource_handle_name = 4;
 
     // The full path from root to the object to be queried.
     ObjectFullPath object_full_path = 5;

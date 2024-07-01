@@ -1,6 +1,4 @@
 // Copyright 2023 Intrinsic Innovation LLC
-// Intrinsic Proprietary and Confidential
-// Provided subject to written agreement between the parties.
 
 syntax = "proto3";
 
@@ -137,6 +135,9 @@ message OpenSessionRequest {
     // session cannot be allocated by other sessions until they are freed. All
     // parts allocated by a session are freed when the session ends.
     PartList allocate_parts = 1;
+    // If ICON has not finished opening the session by this deadline, it will
+    // return an error.
+    google.protobuf.Timestamp deadline = 2;
   }
   // Initial data for opening a session that must be sent with the first
   // OpenSessionRequest. If this field specified in later requests or

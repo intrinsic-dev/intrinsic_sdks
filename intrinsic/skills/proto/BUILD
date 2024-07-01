@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("@ai_intrinsic_sdks_pip_deps//:requirements.bzl", "requirement")
 load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
@@ -306,6 +304,7 @@ proto_library(
         "//intrinsic/world/proto:object_world_updates_proto",
         "@com_google_protobuf//:any_proto",
         "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:timestamp_proto",
     ],
 )
 

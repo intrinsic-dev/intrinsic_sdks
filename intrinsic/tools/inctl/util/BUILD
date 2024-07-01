@@ -1,6 +1,4 @@
 # Copyright 2023 Intrinsic Innovation LLC
-# Intrinsic Proprietary and Confidential
-# Provided subject to written agreement between the parties.
 
 load("//bazel:go_macros.bzl", "go_library")
 
@@ -32,6 +30,17 @@ go_library(
     srcs = ["viperutil.go"],
     deps = [
         "@com_github_spf13_pflag//:go_default_library",
+        "@com_github_spf13_viper//:go_default_library",
+    ],
+)
+
+go_library(
+    name = "orgutil",
+    srcs = ["orgutil.go"],
+    deps = [
+        ":viperutil",
+        "//intrinsic/tools/inctl/auth",
+        "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_viper//:go_default_library",
     ],
 )
