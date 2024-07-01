@@ -142,13 +142,9 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "com_google_protobuf",
-        sha256 = "2dc7254fc975bb40efcab799273c9330d7ed11f4b3263dcbf7328f5c6b067d3e",  # v3.23.1
-        strip_prefix = "protobuf-2dca62f7296e5b49d729f7384f975cecb38382a0",  # v3.23.1
-        urls = ["https://github.com/protocolbuffers/protobuf/archive/2dca62f7296e5b49d729f7384f975cecb38382a0.zip"],  # v3.23.1
-        patch_args = ["-p1"],
-        patches = [
-            Label("//intrinsic/production/external/patches:0012-Remove-exec-tools.patch"),
-        ],
+        sha256 = "2ea80fa37de3da2ed1b503cde35bdf8dd66913370a6cf66fca7d47006596c4d9",  # v3.24.4
+        strip_prefix = "protobuf-7789b3ac85248ad75631a1919071fa268e466210",  # v3.24.4
+        urls = ["https://github.com/protocolbuffers/protobuf/archive/7789b3ac85248ad75631a1919071fa268e466210.zip"],  # v3.24.4
     )
 
     # gRPC
@@ -170,7 +166,7 @@ def intrinsic_sdks_deps_0():
 
     # Dependency of Protobuf and gRPC, explicitly pinned here so that we don't get the definition
     # from protobuf_deps() which applies a patch that does not build in our WORKSPACE. See
-    # https://github.com/protocolbuffers/protobuf/blob/2dca62f7296e5b49d729f7384f975cecb38382a0/protobuf_deps.bzl#L156
+    # https://github.com/protocolbuffers/protobuf/blob/7789b3ac85248ad75631a1919071fa268e466210/protobuf_deps.bzl#L154
     # Here we use a copy of gRPC's definition, see
     # https://github.com/grpc/grpc/blob/0bf4a618b17a3f0ed61c22364913c7f66fc1c61a/bazel/grpc_deps.bzl#L393-L402
     maybe(
@@ -225,6 +221,44 @@ def intrinsic_sdks_deps_0():
         ],
     )
 
+    # Brotli compression library.
+    maybe(
+        http_archive,
+        name = "org_brotli",
+        sha256 = "9d7ec775e67cdb3d0328f63f314b381d57f0f985499bbf2e55b15138a3621b19",
+        strip_prefix = "brotli-1.1.0",
+        urls = ["https://github.com/google/brotli/archive/v1.1.0.zip"],
+    )
+
+    # Zstd compression library.
+    maybe(
+        http_archive,
+        name = "net_zstd",
+        build_file = Label("//intrinsic/production/external:BUILD.zstd"),
+        sha256 = "3b1c3b46e416d36931efd34663122d7f51b550c87f74de2d38249516fe7d8be5",
+        strip_prefix = "zstd-1.5.6",
+        urls = ["https://github.com/facebook/zstd/archive/v1.5.6.zip"],
+    )
+
+    # Snappy compression library.
+    maybe(
+        http_archive,
+        name = "snappy",
+        sha256 = "7ee7540b23ae04df961af24309a55484e7016106e979f83323536a1322cedf1b",
+        strip_prefix = "snappy-1.2.0",
+        urls = ["https://github.com/google/snappy/archive/1.2.0.zip"],  # 2024-04-05
+    )
+
+    # HighwayHash hash function.
+    maybe(
+        http_archive,
+        name = "highwayhash",
+        build_file = Label("//intrinsic/production/external:BUILD.highwayhash"),
+        sha256 = "8be5e0af6ede048c54c8355e0d7bb87305531021d19b1f6334d5c16edb290c81",
+        strip_prefix = "highwayhash-5ad3bf8444cfc663b11bf367baaa31f36e7ff7c8",
+        urls = ["https://github.com/google/highwayhash/archive/5ad3bf8444cfc663b11bf367baaa31f36e7ff7c8.zip"],  # 2024-05-24
+    )
+
     # C++ rules for Bazel.
     maybe(
         http_archive,
@@ -234,20 +268,6 @@ def intrinsic_sdks_deps_0():
         urls = [
             "https://mirror.bazel.build/github.com/bazelbuild/rules_cc/releases/download/0.0.9/rules_cc-0.0.9.tar.gz",
             "https://github.com/bazelbuild/rules_cc/releases/download/0.0.9/rules_cc-0.0.9.tar.gz",
-        ],
-    )
-
-    # Eigen math library.
-    # Repository name should be com_gitlab_libeigen_eigen to serve
-    # as transitive dependency for com_google_ceres_solver
-    maybe(
-        http_archive,
-        name = "com_gitlab_libeigen_eigen",
-        build_file = Label("//intrinsic/production/external:BUILD.eigen"),
-        sha256 = "1ccaabbfe870f60af3d6a519c53e09f3dcf630207321dffa553564a8e75c4fc8",
-        strip_prefix = "eigen-3.4.0",
-        urls = [
-            "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip",
         ],
     )
 
@@ -264,10 +284,10 @@ def intrinsic_sdks_deps_0():
     maybe(
         http_archive,
         name = "com_google_absl",
-        sha256 = "59d2976af9d6ecf001a81a35749a6e551a335b949d34918cfade07737b9d93c5",
-        strip_prefix = "abseil-cpp-20230802.0",
+        integrity = "sha256-czcmuMOm05pBINfkXqi0GkNM2s3kAculAPFCNsSbOdw=",
+        strip_prefix = "abseil-cpp-20240116.2",
         urls = [
-            "https://github.com/abseil/abseil-cpp/archive/refs/tags/20230802.0.tar.gz",
+            "https://github.com/abseil/abseil-cpp/releases/download/20240116.2/abseil-cpp-20240116.2.tar.gz",
         ],
     )
 
@@ -287,6 +307,14 @@ def intrinsic_sdks_deps_0():
         sha256 = "b011a730c8845bfc265f0f81ee4e5e9e1d354df390836d2a25880e123d021f89",
         strip_prefix = "pybind11-2.11.1",
         urls = ["https://github.com/pybind/pybind11/archive/v2.11.1.zip"],  #  Jul 17, 2023
+    )
+
+    maybe(
+        http_archive,
+        name = "pybind11_protobuf",
+        sha256 = "21189abd098528fd3986dcec349ef61ae5506d29d0c51c7a13d6f9dfcc17c676",
+        strip_prefix = "pybind11_protobuf-1d7a7296604537db5f6ace2ddafd1d08c967ec63",
+        urls = ["https://github.com/pybind/pybind11_protobuf/archive/1d7a7296604537db5f6ace2ddafd1d08c967ec63.tar.gz"],  #  Jun 19, 2023
     )
 
     # Bazel skylib

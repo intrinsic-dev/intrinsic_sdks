@@ -8,6 +8,7 @@ import (
 	_ "intrinsic/tools/inctl/cmd/bazel"
 	_ "intrinsic/tools/inctl/cmd/cluster"
 	_ "intrinsic/tools/inctl/cmd/device"
+	_ "intrinsic/tools/inctl/cmd/logs"
 	_ "intrinsic/tools/inctl/cmd/notebook"
 	_ "intrinsic/tools/inctl/cmd/process"
 	"intrinsic/tools/inctl/cmd/root"

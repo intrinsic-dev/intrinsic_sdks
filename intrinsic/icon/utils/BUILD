@@ -153,7 +153,6 @@ cc_test(
         "//intrinsic/icon/release:source_location",
         "//intrinsic/util/testing:gtest_wrapper",
         "//intrinsic/util/thread",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -211,4 +210,14 @@ cc_test(
 cc_library(
     name = "current_cycle",
     hdrs = ["current_cycle.h"],
+)
+
+cc_library(
+    name = "async_request",
+    hdrs = ["async_request.h"],
+    deps = [
+        ":realtime_status",
+        "//intrinsic/icon/testing:realtime_annotations",
+        "//intrinsic/platform/common/buffers:rt_promise",
+    ],
 )

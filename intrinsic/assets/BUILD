@@ -12,12 +12,18 @@ go_library(
     srcs = ["clientutils.go"],
     deps = [
         ":cmdutils",
+        "//intrinsic/frontend/cloud/api:clusterdiscovery_api_go_grpc_proto",
+        "//intrinsic/frontend/cloud/api:solutiondiscovery_api_go_grpc_proto",
         "//intrinsic/tools/inctl/auth",
+        "@com_github_google_go_containerregistry//pkg/authn:go_default_library",
+        "@com_github_google_go_containerregistry//pkg/v1/google:go_default_library",
+        "@com_github_google_go_containerregistry//pkg/v1/remote:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//credentials:go_default_library",
         "@org_golang_google_grpc//credentials/insecure:go_default_library",
+        "@org_golang_google_grpc//metadata:go_default_library",
     ],
 )
 

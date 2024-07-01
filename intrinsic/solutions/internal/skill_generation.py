@@ -9,7 +9,7 @@ import enum
 import inspect
 import re
 import textwrap
-from typing import Any, Callable, Set, Type
+from typing import Any, Callable, Optional, Set, Type
 import uuid
 
 from google.protobuf import descriptor
@@ -23,7 +23,6 @@ from intrinsic.solutions import cel
 from intrinsic.solutions import provided
 from intrinsic.solutions import utils
 from intrinsic.solutions.internal import actions
-from intrinsic.solutions.internal import skill_parameters
 from intrinsic.solutions.internal import skill_utils
 
 # Typing aliases
@@ -270,13 +269,8 @@ def _gen_init_docstring(
           param_defaults
       )
 
-    skill_params = skill_parameters.SkillParameters(
-        param_defaults, info.skill_proto.parameter_description
-    )
     params = skill_utils.extract_docstring_from_message(
-        param_defaults,
-        dict(info.skill_proto.parameter_description.parameter_field_comments),
-        skill_params,
+        param_defaults, info.skill_proto.parameter_description
     )
     param_names = [p.name for p in params]
 
@@ -403,11 +397,11 @@ def _gen_init_params(
 
     # Extract those fields from the default parameter proto which may contain
     # actual default values.
-    skill_params = skill_parameters.SkillParameters(
-        param_defaults, info.skill_proto.parameter_description
-    )
     param_info = skill_utils.extract_parameter_information_from_message(
-        param_defaults, skill_params, wrapper_classes, enum_classes
+        param_defaults,
+        info.skill_proto.parameter_description,
+        wrapper_classes,
+        enum_classes,
     )
     if param_info:
       params, param_names = map(list, zip(*param_info))
@@ -439,7 +433,8 @@ def _gen_init_params(
         inspect.Parameter(
             "return_value_key",
             inspect.Parameter.KEYWORD_ONLY,
-            annotation=str,
+            default=None,
+            annotation=Optional[str],
         )
     )
 
@@ -558,9 +553,9 @@ def gen_skill_class(
       type_class,
       info.skill_name,
       info.package_name,
+      info.skill_proto.parameter_description,
       nested_classes,
       enum_descriptors,
-      dict(info.skill_proto.parameter_description.parameter_field_comments),
   )
 
   init_fun = _gen_init_fun(
@@ -776,17 +771,6 @@ class GeneratedSkill(provided.SkillBase):
       params_set = skill_utils.set_fields_in_msg(self._param_message, fields)
       params_set.extend(self._blackboard_params.keys())
 
-      # If we have a default message, validate the composed parameters.
-      if default_message:
-        skill_params = skill_parameters.SkillParameters(
-            default_message, self._info.skill_proto.parameter_description
-        )
-        skill_utils.check_missing_fields_in_msg(
-            skill_params,
-            self._param_message,
-            set.union(set(fields.keys()), set(self._blackboard_params.keys())),
-        )
-
     return params_set
 
   def _set_return_value_key(self, **kwargs) -> list[str]:
@@ -803,7 +787,8 @@ class GeneratedSkill(provided.SkillBase):
       TypeError: if passing a value that satisfy the slot's type requirements
     """
     if "return_value_key" in kwargs:
-      self._return_value_key = kwargs["return_value_key"]
+      if kwargs["return_value_key"] is not None:
+        self._return_value_key = kwargs["return_value_key"]
       return ["return_value_key"]
     return []
 

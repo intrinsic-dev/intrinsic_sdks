@@ -67,12 +67,11 @@ def non_module_deps():
         strip_prefix = "cel-cpp-037873163975964a80a188ad7f936cb4f37f0684",
         sha256 = "d56e8c15b55240c92143ee3ed717956c67961a24f97711ca410030de92633288",
     )
-
     http_archive(
         name = "com_google_riegeli",
-        url = "https://github.com/google/riegeli/archive/1d90cec619f9b9660ff2db6eb3e35f5ea65dddb2.tar.gz",  # 2024-04-04
-        strip_prefix = "riegeli-1d90cec619f9b9660ff2db6eb3e35f5ea65dddb2",
-        sha256 = "2304f64a246181b94083cdbc86d69c4b93346c196f93b2c5f05a93767bec793d",
+        url = "https://github.com/google/riegeli/archive/e04f8e30376c6132cc4854915e42bd9ed9cddfcc.tar.gz",  # 2024-05-14
+        strip_prefix = "riegeli-e04f8e30376c6132cc4854915e42bd9ed9cddfcc",
+        sha256 = "f09a2e5db9b3d6906dd07fb2309bc91fabb1c832edc9a40580842f833fff74ce",
     )
 
     XLS_COMMIT = "507b33b5bdd696adb7933a6617b65c70e46d4703"  # 2024-03-06
@@ -90,11 +89,19 @@ def non_module_deps():
         urls = ["https://github.com/pybind/pybind11_abseil/archive/refs/tags/v202402.0.tar.gz"],
     )
 
+    # Eigen math library.
+    # Repository name should be com_gitlab_libeigen_eigen to serve
+    # as transitive dependency for com_google_ceres_solver
+    # BCR version is 2 years behind, so we use a specific commit and http_archive.
+    EIGEN_COMMIT = "38b9cc263bbaeb03ce408a4e26084543a6c0dedb"  # 2024-05-30
     http_archive(
-        name = "pybind11_protobuf",
-        sha256 = "59c5fbb6dfe1427d41217eb58386f16940b6c8d6ff63407a72566daa4f343f59",
-        strip_prefix = "pybind11_protobuf-b4a2e87a10cd5f6309e4ff67c040a470d7ec2373",
-        urls = ["https://github.com/pybind/pybind11_protobuf/archive/b4a2e87a10cd5f6309e4ff67c040a470d7ec2373.tar.gz"],  #  Feb 23, 2024
+        name = "com_gitlab_libeigen_eigen",
+        build_file = Label("//intrinsic/production/external:BUILD.eigen"),
+        sha256 = "136102d1241eb73f0ed3e1f47830707d1e40016ef61ed2d682c1398392879401",
+        strip_prefix = "eigen-%s" % EIGEN_COMMIT,
+        urls = [
+            "https://gitlab.com/libeigen/eigen/-/archive/%s/eigen-%s.zip" % (EIGEN_COMMIT, EIGEN_COMMIT),
+        ],
     )
 
 def _non_module_deps_impl(ctx):  # @unused
