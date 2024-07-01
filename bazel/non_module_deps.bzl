@@ -4,7 +4,6 @@
 Module extension for non-module dependencies
 """
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", git_repository = "new_git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file", "http_jar")
 
 def non_module_deps():
@@ -39,11 +38,13 @@ def non_module_deps():
         strip_prefix = "googleapis-d9250048e9b9df4d8a0ce67b8ccf84e0aab0d50e",
     )
 
-    git_repository(
+    http_archive(
         name = "com_github_google_flatbuffers",
-        remote = "https://github.com/google/flatbuffers.git",
-        commit = "615616cb5549a34bdf288c04bc1b94bd7a65c396",
-        shallow_since = "1644943722 -0500",
+        urls = [
+            "https://github.com/google/flatbuffers/archive/refs/tags/v23.3.3.tar.gz",
+        ],
+        sha256 = "8aff985da30aaab37edf8e5b02fda33ed4cbdd962699a8e2af98fdef306f4e4d",
+        strip_prefix = "flatbuffers-23.3.3",
     )
     http_jar(
         name = "firestore_emulator",
@@ -75,6 +76,13 @@ def non_module_deps():
         sha256 = "d56e8c15b55240c92143ee3ed717956c67961a24f97711ca410030de92633288",
     )
 
+    http_archive(
+        name = "com_google_riegeli",
+        url = "https://github.com/google/riegeli/archive/1d90cec619f9b9660ff2db6eb3e35f5ea65dddb2.tar.gz",  # 2024-04-04
+        strip_prefix = "riegeli-1d90cec619f9b9660ff2db6eb3e35f5ea65dddb2",
+        sha256 = "",
+    )
+
     XLS_COMMIT = "507b33b5bdd696adb7933a6617b65c70e46d4703"  # 2024-03-06
     http_file(
         name = "com_google_xls_strong_int_h",
@@ -87,17 +95,17 @@ def _non_module_deps_impl(ctx):  # @unused
     non_module_deps()
 
     # When included from WORKSPACE, we need repo_mapping for local_config_python
-    git_repository(
+    http_archive(
         name = "pybind11_abseil",
-        remote = "https://github.com/pybind/pybind11_abseil.git",
-        commit = "2bf606ceddb0b7d874022defa8ea6d2d3e1605ad",
-        shallow_since = "1684958620 -0700",
+        sha256 = "1496b112e86416e2dcf288569a3e7b64f3537f0b18132224f492266e9ff76c44",
+        strip_prefix = "pybind11_abseil-202402.0",
+        urls = ["https://github.com/pybind/pybind11_abseil/archive/refs/tags/v202402.0.tar.gz"],
     )
-    git_repository(
+    http_archive(
         name = "pybind11_protobuf",
-        commit = "5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78",
-        remote = "https://github.com/pybind/pybind11_protobuf.git",
-        shallow_since = "1687199891 -0700",
+        sha256 = "abf2d5704d9fb2c5e66e6333667bf5f92aaaac74c05d704a84a7478d91dc6663",
+        strip_prefix = "pybind11_protobuf-5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78",
+        urls = ["https://github.com/pybind/pybind11_protobuf/archive/5baa2dc9d93e3b608cde86dfa4b8c63aeab4ac78.tar.gz"],  #  Jun 19, 2023
     )
 
 non_module_deps_ext = module_extension(implementation = _non_module_deps_impl)
