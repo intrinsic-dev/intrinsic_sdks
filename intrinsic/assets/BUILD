@@ -103,10 +103,34 @@ go_library(
         "@com_github_google_go_containerregistry//pkg/v1:go_default_library",
         "@com_github_google_go_containerregistry//pkg/v1/tarball:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
+        "@com_github_rs_xid//:go_default_library",
         "@io_opencensus_go//trace:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",
         "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_library(
+    name = "typeutils",
+    srcs = ["typeutils.go"],
+    deps = [
+        "//intrinsic/assets/proto:asset_type_go_proto",
+        "@org_golang_x_exp//slices",
+    ],
+)
+
+go_library(
+    name = "bundleio",
+    srcs = ["bundle_io.go"],
+    deps = [
+        "//intrinsic/assets/proto:id_go_proto",
+        "//intrinsic/assets/services/proto:service_manifest_go_proto",
+        "//intrinsic/kubernetes/workcell_spec/proto:image_go_proto",
+        "//intrinsic/util/archive:tartooling",
+        "@io_bazel_rules_go//proto/wkt:descriptor_go_proto",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/anypb",
     ],
 )
